@@ -13,6 +13,7 @@ public class Socio extends Usuario {
     private String estado;
     private boolean tieneSanciones;
     private boolean tieneAtrasos;
+    public List<Prestamo> prestamos;
 
     public Socio(int id, String nombre, String apellido, String dni, String email, String telefono, Date fecha, TipoUsuario tipoUsuario, String usuario, String contrasenia, int numeroSocio, LocalDate fechaVencimientoCarnet, String estado, boolean tieneSanciones, boolean tieneAtrasos) {
 
@@ -22,6 +23,7 @@ public class Socio extends Usuario {
         this.estado = estado;
         this.tieneSanciones = tieneSanciones;
         this.tieneAtrasos = tieneAtrasos;
+        this.prestamos = new ArrayList<>();
     }
 
     public void renovarCarnet(int mesesExtra) {

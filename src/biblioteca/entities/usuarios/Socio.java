@@ -39,8 +39,11 @@ public class Socio extends Usuario {
 
     public List<Prestamo> obtenerPrestamosActivos() {
         List<Prestamo> activos = new ArrayList<>();
+        if (prestamos == null || prestamos.isEmpty()) {
+            return activos;
+        }
         for (Prestamo p : prestamos) {
-            if (!p.getEstado().equalsIgnoreCase("Devuelto")) {
+            if (p != null && p.getEstado() != null && !p.getEstado().equalsIgnoreCase("Devuelto")) {
                 activos.add(p);
             }
         }

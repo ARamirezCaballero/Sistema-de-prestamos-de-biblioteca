@@ -4,7 +4,6 @@ import biblioteca.entities.inventario.Ejemplar;
 import biblioteca.entities.usuarios.Socio;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 
 public class Prestamo {
 

@@ -54,7 +54,7 @@ public abstract class Usuario {
     }
 
     public String getNombreCompleto(){
-        return nombre + "" + apellido;
+        return nombre + " " + apellido;
     }
 
     public String getDni() {

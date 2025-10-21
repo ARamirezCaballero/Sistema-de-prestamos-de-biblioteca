@@ -28,6 +28,7 @@ public class Socio extends Usuario {
 
     public void renovarCarnet(int mesesExtra) {
         LocalDate fechaRenovada = this.fechaVencimientoCarnet.plusMonths(mesesExtra);
+        this.fechaVencimientoCarnet = fechaRenovada;
         System.out.println("Carnet renovado hasta: "+ fechaRenovada);
     }
 

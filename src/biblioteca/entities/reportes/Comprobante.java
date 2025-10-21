@@ -1,6 +1,8 @@
 package biblioteca.entities.reportes;
 
 import biblioteca.entities.prestamos.Prestamo;
+import biblioteca.entities.usuarios.Socio;
+import biblioteca.entities.inventario.Ejemplar;
 import java.time.LocalDate;
 
 public class Comprobante {
@@ -16,7 +18,7 @@ public class Comprobante {
         this.id = id;
         this.tipo = tipo;
         this.prestamo = prestamo;
-        this.idPrestamo = prestamo.getId();
+        this.idPrestamo = (prestamo != null ? prestamo.getId() : -1);
         this.fechaEmision = LocalDate.now();
         this.contenido = "";
     }
@@ -29,10 +31,26 @@ public class Comprobante {
 
         if (prestamo != null) {
             sb.append("Préstamo N°: ").append(prestamo.getId()).append("\n");
-            sb.append("Socio: ").append(prestamo.obtenerSocio().getNombreCompleto()).append("\n");
-            sb.append("Ejemplar: ").append(prestamo.obtenerEjemplar().getCodigo()).append("\n");
+
+            Socio socio = prestamo.obtenerSocio();
+            if (socio != null) {
+                sb.append("Socio: ").append(socio.getNombreCompleto())
+                        .append(" | Email: ").append(socio.getEmail()).append("\n");
+            } else {
+                sb.append("Socio: No disponible\n");
+            }
+
+            Ejemplar ejemplar = prestamo.obtenerEjemplar();
+            if (ejemplar != null) {
+                sb.append("Ejemplar: ").append(ejemplar.getCodigo()).append("\n");
+            } else {
+                sb.append("Ejemplar: No asignado\n");
+            }
+
             sb.append("Estado actual: ").append(prestamo.getEstado()).append("\n");
             sb.append("Fecha vencimiento: ").append(prestamo.getFechaVencimiento()).append("\n");
+        } else {
+            sb.append("No hay información del préstamo asociada a este comprobante.\n");
         }
 
         sb.append("\nGracias por utilizar el sistema de la Biblioteca.\n");
@@ -47,8 +65,6 @@ public class Comprobante {
         }
     }
 
-    //Simulación del envio del comprobante por email.
-    //Sin conexión real, solo es un mensaje en consola
     public void enviarPorEmail() {
         if (prestamo != null && prestamo.obtenerSocio() != null) {
             String email = prestamo.obtenerSocio().getEmail();
@@ -74,5 +90,5 @@ public class Comprobante {
     public String toString() {
         return "Comprobante #" + id + " (" + tipo + ") - Emitido el " + fechaEmision;
     }
-
 }
+

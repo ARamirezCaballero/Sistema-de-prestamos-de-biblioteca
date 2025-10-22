@@ -1,82 +1,99 @@
 package biblioteca.entities.reportes;
 
+import biblioteca.entities.prestamos.Prestamo;
+import biblioteca.entities.prestamos.Devolucion;
+import biblioteca.entities.usuarios.Socio;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class Historial {
 
     private int id;
-    private LocalDate fecha;
-    private String tipoOperacion;
-    private int idUsuario;
-    private int idLibro;
-    private int idPrestamo;
-    private String detalles;
+    private Socio socio;
+    private List<Prestamo> prestamos;
+    private List<Devolucion> devoluciones;
 
-    // Estructura estática para simular una base de datos en memoria
-    private static List<Historial> registros = new ArrayList<>();
-
-    public Historial(int id, LocalDate fecha, String tipoOperacion, int idUsuario, int idLibro, int idPrestamo, String detalles) {
+    public Historial(int id, Socio socio) {
+        if (socio == null) {
+            throw new IllegalArgumentException("El socio no puede ser nulo.");
+        }
         this.id = id;
-        this.fecha = fecha;
-        this.tipoOperacion = tipoOperacion;
-        this.idUsuario = idUsuario;
-        this.idLibro = idLibro;
-        this.idPrestamo = idPrestamo;
-        this.detalles = detalles;
+        this.socio = socio;
+        this.prestamos = new ArrayList<>();
+        this.devoluciones = new ArrayList<>();
     }
 
-    public void registrar() {
-        registros.add(this);
-        System.out.println("Historial registrado: [" + tipoOperacion + "] para usuario ID " + idUsuario);
-    }
-
-    public static List<Historial> obtenerPorUsuario(int idUsuario) {
-        List<Historial> resultado = new ArrayList<>();
-        for (Historial h : registros) {
-            if (h.idUsuario == idUsuario) {
-                resultado.add(h);
-            }
+    public void agregarPrestamo(Prestamo prestamo) {
+        if (prestamo != null && !prestamos.contains(prestamo)) {
+            prestamos.add(prestamo);
         }
-        return resultado;
     }
 
-    public static List<Historial> obtenerPorLibro(int idLibro) {
-        List<Historial> resultado = new ArrayList<>();
-        for (Historial h : registros) {
-            if (h.idLibro == idLibro) {
-                resultado.add(h);
-            }
+    public void agregarDevolucion(Devolucion devolucion) {
+        if (devolucion != null && !devoluciones.contains(devolucion)) {
+            devoluciones.add(devolucion);
         }
-        return resultado;
     }
 
-    public static List<Historial> obtenerPorFecha(LocalDate fecha) {
-        List<Historial> resultado = new ArrayList<>();
-        for (Historial h : registros) {
-            if (h.fecha.equals(fecha)) {
-                resultado.add(h);
-            }
+    public List<Prestamo> obtenerPrestamos() {
+        return new ArrayList<>(prestamos); // retorna copia para evitar manipulación externa
+    }
+
+    public List<Devolucion> obtenerDevoluciones() {
+        return new ArrayList<>(devoluciones);
+    }
+
+    public String generarResumen() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("===== HISTORIAL DEL SOCIO =====\n");
+        sb.append("Socio: ").append(socio.getNombreCompleto())
+                .append(" | Email: ").append(socio.getEmail()).append("\n");
+        sb.append("Prestamos registrados: ").append(prestamos.size()).append("\n");
+        sb.append("Devoluciones registradas: ").append(devoluciones.size()).append("\n\n");
+
+        sb.append("DETALLE DE PRÉSTAMOS:\n");
+        for (Prestamo p : prestamos) {
+            sb.append("Préstamo #").append(p.getId())
+                    .append(" | Ejemplar: ").append(p.getEjemplar() != null ? p.getEjemplar().getCodigo() : "N/A")
+                    .append(" | Estado: ").append(p.getEstado())
+                    .append(" | Fecha vencimiento: ").append(p.getFechaVencimiento()).append("\n");
         }
-        return resultado;
+
+        sb.append("\nDETALLE DE DEVOLUCIONES:\n");
+        for (Devolucion d : devoluciones) {
+            sb.append("Devolución #").append(d.getId())
+                    .append(" | Fecha: ").append(d.getFechaDevolucion())
+                    .append(" | Estado ejemplar: ").append(d.getEstadoEjemplar())
+                    .append(" | Observaciones: ").append(d.getObservaciones()).append("\n");
+        }
+
+        return sb.toString();
     }
 
     public int getId() { return id; }
-    public LocalDate getFecha() { return fecha; }
-    public String getTipoOperacion() { return tipoOperacion; }
-    public int getIdUsuario() { return idUsuario; }
-    public int getIdLibro() { return idLibro; }
-    public int getIdPrestamo() { return idPrestamo; }
-    public String getDetalles() { return detalles; }
+    public Socio getSocio() { return socio; }
 
     @Override
     public String toString() {
-        return "[" + fecha + "] " + tipoOperacion +
-                " | Usuario ID: " + idUsuario +
-                " | Libro ID: " + idLibro +
-                " | Préstamo ID: " + idPrestamo +
-                " | Detalles: " + detalles;
+        return "Historial #" + id + " - Socio: " + socio.getNombreCompleto()
+                + " | Préstamos: " + prestamos.size()
+                + " | Devoluciones: " + devoluciones.size();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Historial)) return false;
+        Historial historial = (Historial) o;
+        return id == historial.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }
+

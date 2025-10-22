@@ -1,94 +1,107 @@
 package biblioteca.entities.usuarios;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.util.Objects;
 
 public abstract class Usuario {
-    private int id;
+    private final int id;
+    private final String dni;
     private String nombre;
     private String apellido;
-    private String dni;
     private String email;
     private String telefono;
-    private Date fecha;
-    private TipoUsuario tipoUsuario;
+    private LocalDate fechaAlta;
+    private final TipoUsuario tipoUsuario;
     private String usuario;
     private String contrasenia;
 
+    public Usuario(int id, String nombre, String apellido, String dni, String email, String telefono,
+                   LocalDate fechaAlta, TipoUsuario tipoUsuario, String usuario, String contrasenia) {
 
-    public Usuario(int id, String nombre, String apellido, String dni, String email, String telefono, Date fecha, TipoUsuario tipoUsuario, String usuario, String contrasenia) {
+        if (id <= 0) throw new IllegalArgumentException("El ID del usuario debe ser positivo.");
+        if (nombre == null || nombre.isBlank()) throw new IllegalArgumentException("El nombre no puede estar vacío.");
+        if (apellido == null || apellido.isBlank()) throw new IllegalArgumentException("El apellido no puede estar vacío.");
+        if (dni == null || dni.isBlank()) throw new IllegalArgumentException("El DNI no puede estar vacío.");
+        if (usuario == null || usuario.isBlank()) throw new IllegalArgumentException("El nombre de usuario no puede estar vacío.");
+        if (contrasenia == null || contrasenia.isBlank()) throw new IllegalArgumentException("La contraseña no puede estar vacía.");
+        if (tipoUsuario == null) throw new IllegalArgumentException("El tipo de usuario no puede ser nulo.");
+
         this.id = id;
         this.nombre = nombre;
         this.apellido = apellido;
         this.dni = dni;
         this.email = email;
         this.telefono = telefono;
-        this.fecha = fecha;
+        this.fechaAlta = (fechaAlta != null) ? fechaAlta : LocalDate.now();
         this.tipoUsuario = tipoUsuario;
         this.usuario = usuario;
         this.contrasenia = contrasenia;
     }
 
     public boolean validarCredenciales(String usuarioIngresado, String contraseniaIngresada) {
-        return this.usuario.equals(usuarioIngresado) && this.contrasenia.equals(contraseniaIngresada);
-    }
-    public String obtenerDatos() {
-        return "ID: " + id +
-                " | Nombre: " + nombre + " " + apellido +
-                " | DNI: " + dni +
-                " | Email: " + email +
-                " | Teléfono: " + telefono +
-                " | Tipo: " + tipoUsuario +
-                " | Fecha de alta: " + fecha;
+        if (usuarioIngresado == null || contraseniaIngresada == null) return false;
+        return Objects.equals(this.usuario, usuarioIngresado) &&
+                Objects.equals(this.contrasenia, contraseniaIngresada);
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public String getNombre() {
-        return nombre;
-    }
-
-    public String getApellido() {
-        return apellido;
-    }
-
-    public String getNombreCompleto(){
+    public String getNombreCompleto() {
         return nombre + " " + apellido;
     }
 
-    public String getDni() {
-        return dni;
+    // --- Getters ---
+    public int getId() { return id; }
+    public String getNombre() { return nombre; }
+    public String getApellido() { return apellido; }
+    public String getDni() { return dni; }
+    public String getEmail() { return email; }
+    public String getTelefono() { return telefono; }
+    public LocalDate getFechaAlta() { return fechaAlta; }
+    public TipoUsuario getTipoUsuario() { return tipoUsuario; }
+    public String getUsuario() { return usuario; }
+    public String getContrasenia() { return contrasenia; }
+
+    public void setNombre(String nombre) {
+        if (nombre == null || nombre.isBlank())
+            throw new IllegalArgumentException("El nombre no puede estar vacío.");
+        this.nombre = nombre;
     }
 
-    public String getEmail() {
-        return email;
+    public void setApellido(String apellido) {
+        if (apellido == null || apellido.isBlank())
+            throw new IllegalArgumentException("El apellido no puede estar vacío.");
+        this.apellido = apellido;
     }
 
-    public String getTelefono() {
-        return telefono;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public Date getFecha() {
-        return fecha;
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
     }
 
-    public TipoUsuario getTipoUsuario() {
-        return tipoUsuario;
+    public void setUsuario(String usuario) {
+        if (usuario == null || usuario.isBlank())
+            throw new IllegalArgumentException("El nombre de usuario no puede estar vacío.");
+        this.usuario = usuario;
     }
 
-    public String getUsuario() {
-        return usuario;
+    public void setContrasenia(String contrasenia) {
+        if (contrasenia == null || contrasenia.isBlank())
+            throw new IllegalArgumentException("La contraseña no puede estar vacía.");
+        this.contrasenia = contrasenia;
     }
 
-    public String getContrasenia() {
-        return contrasenia;
-    }
+    // --- Métodos abstractos ---
+    public abstract String getTipo();
 
     @Override
     public String toString() {
-        return tipoUsuario + ": " + nombre + " " + apellido + " (" + email + ") ";
+        return tipoUsuario + ": " + getNombreCompleto() +
+                " | DNI: " + dni +
+                " | Email: " + email +
+                " | Teléfono: " + telefono +
+                " | Alta: " + fechaAlta;
     }
-
-    public abstract String getTipo();
 }
+

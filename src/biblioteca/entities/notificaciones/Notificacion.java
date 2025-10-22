@@ -1,93 +1,84 @@
 package biblioteca.entities.notificaciones;
 
-import biblioteca.entities.prestamos.Prestamo;
-import java.time.LocalDate;
+import biblioteca.entities.inventario.Ejemplar;
+import biblioteca.entities.usuarios.Usuario;
+import java.time.LocalDateTime;
+import java.util.Objects;
 
 public class Notificacion {
-    private int id;
-    private LocalDate fechaEnvio;
-    private String tipo;
+
+    private int idNotificacion;
     private String mensaje;
-    private boolean leida;
-    private Prestamo prestamo;
+    private LocalDateTime fechaHora;
+    private Usuario destinatario;
+    private Ejemplar ejemplarRelacionado;
 
-    public Notificacion(int id, String tipo, Prestamo prestamo) {
-        this.id = id;
-        this.tipo = tipo;
-        this.prestamo = prestamo;
-        this.fechaEnvio = LocalDate.now();
-        this.mensaje = generarMensaje();
-        this.leida = false;
+    public Notificacion(int idNotificacion, String mensaje, LocalDateTime fechaHora, Usuario destinatario, Ejemplar ejemplarRelacionado) {
+        this.idNotificacion = idNotificacion;
+        this.mensaje = mensaje;
+        this.fechaHora = fechaHora;
+        this.destinatario = destinatario;
+        this.ejemplarRelacionado = ejemplarRelacionado;
     }
 
-    public void enviar() {
-        if (prestamo != null && prestamo.obtenerSocio() != null) {
-            String email = prestamo.obtenerSocio().getEmail();
-            System.out.println("Enviando notificación a: " + email);
-            System.out.println("Asunto: " + tipo);
-            System.out.println("Mensaje:\n" + mensaje);
-        } else {
-            System.out.println("No se pudo enviar la notificación: falta información del socio.");
-        }
+    // Getters y setters
+    public int getIdNotificacion() {
+        return idNotificacion;
     }
 
-    public void marcarComoLeida() {
-        this.leida = true;
-        System.out.println("Notificación marcada como leída.");
+    public String getMensaje() {
+        return mensaje;
     }
 
-    public Prestamo obtenerPrestamo() {
-        return prestamo;
+    public void setMensaje(String mensaje) {
+        this.mensaje = mensaje;
     }
 
-    public String generarMensaje() {
-        if (prestamo == null || prestamo.obtenerSocio() == null || prestamo.obtenerEjemplar() == null) {
-            return "Información incompleta para generar el mensaje.";
-        }
-
-        String nombre = prestamo.obtenerSocio().getNombreCompleto();
-        String tituloLibro = prestamo.obtenerEjemplar().obtenerLibro().getTitulo();
-        String mensajeGenerado = "";
-
-        switch (tipo.toLowerCase()) {
-            case "recordatorio":
-                mensajeGenerado = "Hola " + nombre + ", te recordamos que el libro '" +
-                        tituloLibro + "' debe devolverse antes del " + prestamo.getFechaVencimiento() + ".";
-                break;
-
-            case "vencimiento":
-                mensajeGenerado = "Hola " + nombre + ", tu préstamo del libro '" +
-                        tituloLibro + "' ha vencido. Por favor, acercate a la biblioteca para regularizar la situación.";
-                break;
-
-            case "confirmación":
-                mensajeGenerado = "Hola " + nombre + ", tu préstamo del libro '" +
-                        tituloLibro + "' fue registrado con éxito. Fecha de vencimiento: " + prestamo.getFechaVencimiento() + ".";
-                break;
-
-            default:
-                mensajeGenerado = "Hola " + nombre + ", este es un aviso del sistema de biblioteca sobre tu préstamo.";
-                break;
-        }
-
-        return mensajeGenerado;
+    public LocalDateTime getFechaHora() {
+        return fechaHora;
     }
 
-    public int getId() { return id; }
-    public LocalDate getFechaEnvio() { return fechaEnvio; }
-    public String getTipo() { return tipo; }
-    public String getMensaje() { return mensaje; }
-    public boolean isLeida() { return leida; }
+    public void setFechaHora(LocalDateTime fechaHora) {
+        this.fechaHora = fechaHora;
+    }
 
-    public void setTipo(String tipo) { this.tipo = tipo; }
-    public void setPrestamo(Prestamo prestamo) { this.prestamo = prestamo; }
+    public Usuario getDestinatario() {
+        return destinatario;
+    }
+
+    public void setDestinatario(Usuario destinatario) {
+        this.destinatario = destinatario;
+    }
+
+    public Ejemplar getEjemplarRelacionado() {
+        return ejemplarRelacionado;
+    }
+
+    public void setEjemplarRelacionado(Ejemplar ejemplarRelacionado) {
+        this.ejemplarRelacionado = ejemplarRelacionado;
+    }
 
     @Override
     public String toString() {
-        return "Notificación #" + id +
-                " | Tipo: " + tipo +
-                " | Fecha de envío: " + fechaEnvio +
-                " | Leída: " + (leida ? "Sí" : "No");
+        return "Notificacion{" +
+                "mensaje='" + mensaje + '\'' +
+                ", fechaHora=" + fechaHora +
+                ", destinatario=" + (destinatario != null ? destinatario.getNombreCompleto() : "Sin destinatario") +
+                ", ejemplarRelacionado=" + (ejemplarRelacionado != null ? ejemplarRelacionado.getCodigo() : "Sin ejemplar") +
+                '}';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Notificacion)) return false;
+        Notificacion that = (Notificacion) o;
+        return idNotificacion == that.idNotificacion;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(idNotificacion);
+    }
 }
+

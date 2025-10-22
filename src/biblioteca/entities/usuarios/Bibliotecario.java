@@ -1,23 +1,27 @@
 package biblioteca.entities.usuarios;
 
+import java.time.LocalDate;
+
 public class Bibliotecario extends Usuario{
 
     private String legajo;
     private String turno;
 
-    public Bibliotecario(int id, String nombre, String apellido, String dni, String email, String telefono, java.util.Date fecha, TipoUsuario tipoUsuario, String usuario, String contrasenia, String legajo, String turno) {
+    public Bibliotecario(int id, String nombre, String apellido, String dni, String email, String telefono,
+                         LocalDate fecha, TipoUsuario tipoUsuario, String usuario, String contrasenia,
+                         String legajo, String turno) {
 
         super(id, nombre, apellido, dni, email, telefono, fecha, tipoUsuario, usuario, contrasenia);
+
+        if (legajo == null || legajo.isBlank()) {
+            throw new IllegalArgumentException("El legajo del bibliotecario no puede estar vacío.");
+        }
+        if (turno == null || turno.isBlank()) {
+            throw new IllegalArgumentException("El turno del bibliotecario no puede estar vacío.");
+        }
+
         this.legajo = legajo;
         this.turno = turno;
-    }
-
-    public String obtenerLegajo() {
-        return legajo;
-    }
-
-    public String obtenerTurno() {
-        return turno;
     }
 
     @Override
@@ -30,6 +34,9 @@ public class Bibliotecario extends Usuario{
     }
 
     public void setLegajo(String legajo) {
+        if (legajo == null || legajo.isBlank()) {
+            throw new IllegalArgumentException("El legajo no puede ser vacío.");
+        }
         this.legajo = legajo;
     }
 
@@ -38,6 +45,9 @@ public class Bibliotecario extends Usuario{
     }
 
     public void setTurno(String turno) {
+        if (turno == null || turno.isBlank()) {
+            throw new IllegalArgumentException("El turno no puede ser vacío.");
+        }
         this.turno = turno;
     }
 

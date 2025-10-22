@@ -4,7 +4,6 @@ import biblioteca.entities.prestamos.Prestamo;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class Socio extends Usuario {
@@ -13,9 +12,9 @@ public class Socio extends Usuario {
     private String estado;
     private boolean tieneSanciones;
     private boolean tieneAtrasos;
-    public List<Prestamo> prestamos;
+    private List<Prestamo> prestamos;
 
-    public Socio(int id, String nombre, String apellido, String dni, String email, String telefono, Date fecha, TipoUsuario tipoUsuario, String usuario, String contrasenia, int numeroSocio, LocalDate fechaVencimientoCarnet, String estado, boolean tieneSanciones, boolean tieneAtrasos) {
+    public Socio(int id, String nombre, String apellido, String dni, String email, String telefono, LocalDate fecha, TipoUsuario tipoUsuario, String usuario, String contrasenia, int numeroSocio, LocalDate fechaVencimientoCarnet, String estado, boolean tieneSanciones, boolean tieneAtrasos) {
 
         super(id, nombre, apellido, dni, email, telefono, fecha, tipoUsuario, usuario, contrasenia);
         this.numeroSocio = numeroSocio;
@@ -27,10 +26,12 @@ public class Socio extends Usuario {
     }
 
     public void renovarCarnet(int mesesExtra) {
-        LocalDate fechaRenovada = this.fechaVencimientoCarnet.plusMonths(mesesExtra);
-        this.fechaVencimientoCarnet = fechaRenovada;
-        System.out.println("Carnet renovado hasta: "+ fechaRenovada);
+        if (mesesExtra <= 0) {
+            throw new IllegalArgumentException("El número de meses debe ser mayor a cero.");
+        }
+        this.fechaVencimientoCarnet = this.fechaVencimientoCarnet.plusMonths(mesesExtra);
     }
+
 
     public boolean verificarVigencia() {
         LocalDate hoy = LocalDate.now();
@@ -51,6 +52,7 @@ public class Socio extends Usuario {
     }
 
     public boolean verificarHabilitacion() {
+        if (estado == null) return false;
         boolean carnetVigente = verificarVigencia();
         return carnetVigente && !tieneSanciones && !tieneAtrasos && estado.equalsIgnoreCase("Activo");
     }
@@ -97,7 +99,13 @@ public class Socio extends Usuario {
     }
 
     public void agregarPrestamo(Prestamo prestamo) {
-        this.prestamos.add(prestamo);
+        if (prestamo == null) {
+            throw new IllegalArgumentException("El préstamo no puede ser nulo.");
+        }
+        if (prestamos.contains(prestamo)) {
+            throw new IllegalStateException("El préstamo ya está registrado para este socio.");
+        }
+        prestamos.add(prestamo);
     }
 
     @Override

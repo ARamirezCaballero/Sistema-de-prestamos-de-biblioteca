@@ -11,60 +11,48 @@ public class Devolucion {
     private LocalDate fechaDevolucion;
     private String estadoEjemplar;
     private String observaciones;
+    private double multa;
     private Prestamo prestamo;
 
     public Devolucion(int id, LocalDate fechaDevolucion, String estadoEjemplar,
-                      String observaciones, Prestamo prestamo) {
+                      String observaciones, Prestamo prestamo, double multa) {
 
-        if (fechaDevolucion == null) {
-            throw new IllegalArgumentException("La fecha de devolución no puede ser nula.");
-        }
-        if (prestamo == null) {
-            throw new IllegalArgumentException("El préstamo asociado no puede ser nulo.");
-        }
+        if (fechaDevolucion == null) throw new IllegalArgumentException("La fecha de devolución no puede ser nula.");
+        if (prestamo == null) throw new IllegalArgumentException("El préstamo asociado no puede ser nulo.");
 
         this.id = id;
         this.fechaDevolucion = fechaDevolucion;
         this.estadoEjemplar = estadoEjemplar != null ? estadoEjemplar : "Disponible";
-        this.observaciones = observaciones;
+        this.observaciones = observaciones != null ? observaciones : "";
         this.prestamo = prestamo;
+        this.multa = multa;
 
-        // Actualiza estado del préstamo y ejemplar
+        // Actualiza estado del préstamo y del ejemplar
         prestamo.marcarComoDevuelto();
         if (prestamo.getEjemplar() != null) {
-            prestamo.getEjemplar().setEstado(estadoEjemplar);
+            prestamo.getEjemplar().setEstado(this.estadoEjemplar);
         }
     }
 
-    public double calcularMulta(PoliticaPrestamo politica) {
-        if (politica == null || prestamo == null) return 0.0;
-
-        long diasAtraso = ChronoUnit.DAYS.between(prestamo.getFechaVencimiento(), fechaDevolucion);
-        return diasAtraso > 0 ? diasAtraso * politica.getMultaPorDia() : 0.0;
+    /** Genera un string listo para mostrar en la UI o VisorComprobante */
+    public String formatearParaUI() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Devolución #").append(id).append("\n");
+        sb.append("Fecha: ").append(fechaDevolucion).append("\n");
+        sb.append("Estado del ejemplar: ").append(estadoEjemplar).append("\n");
+        sb.append("Observaciones: ").append(observaciones.isBlank() ? "N/A" : observaciones).append("\n");
+        sb.append("Préstamo ID: ").append(prestamo != null ? prestamo.getId() : "N/A").append("\n");
+        sb.append("Multa: $").append(multa);
+        return sb.toString();
     }
 
-    public void registrarObservaciones(String nuevasObservaciones) {
-        this.observaciones = nuevasObservaciones;
-    }
-
-    public Prestamo getPrestamo() {
-        return prestamo;
-    }
-
-    public boolean verificarEstadoEjemplar() {
-        Ejemplar ejemplar = prestamo != null ? prestamo.getEjemplar() : null;
-        return ejemplar != null && "Disponible".equalsIgnoreCase(ejemplar.getEstado());
-    }
-
-    // Getters y setters
+    // Getters y Setters
     public int getId() { return id; }
     public LocalDate getFechaDevolucion() { return fechaDevolucion; }
     public String getEstadoEjemplar() { return estadoEjemplar; }
     public String getObservaciones() { return observaciones; }
-
-    public void setFechaDevolucion(LocalDate fechaDevolucion) {
-        this.fechaDevolucion = fechaDevolucion;
-    }
+    public double getMulta() { return multa; }
+    public Prestamo getPrestamo() { return prestamo; }
 
     public void setEstadoEjemplar(String estadoEjemplar) {
         this.estadoEjemplar = estadoEjemplar;
@@ -73,18 +61,7 @@ public class Devolucion {
         }
     }
 
-    public void setPrestamo(Prestamo prestamo) {
-        this.prestamo = prestamo;
-    }
-
-    @Override
-    public String toString() {
-        return "Devolución #" + id +
-                " | Fecha: " + fechaDevolucion +
-                " | Estado ejemplar: " + estadoEjemplar +
-                " | Observaciones: " + (observaciones != null ? observaciones : "N/A") +
-                " | Préstamo ID: " + (prestamo != null ? prestamo.getId() : "N/A");
-    }
+    public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
 
     @Override
     public boolean equals(Object o) {
@@ -95,8 +72,7 @@ public class Devolucion {
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }
+
 

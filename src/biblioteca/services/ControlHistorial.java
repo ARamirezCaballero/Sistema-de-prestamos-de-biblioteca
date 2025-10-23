@@ -135,6 +135,18 @@ public class ControlHistorial {
         }
     }
 
+    public boolean existeSocio(int idSocio) {
+        return registros.stream().anyMatch(h -> h.getSocio().getId() == idSocio);
+    }
+
+    public boolean existeLibro(int idLibro) {
+        return registros.stream().anyMatch(h ->
+                h.obtenerPrestamos().stream()
+                        .anyMatch(p -> p.getEjemplar() != null && p.getEjemplar().getLibro().getId() == idLibro)
+        );
+    }
+
+
     /** Getter de todos los historiales registrados */
     public List<Historial> getRegistros() {
         return registros;

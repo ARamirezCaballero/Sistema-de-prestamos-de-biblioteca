@@ -14,6 +14,7 @@ public class Ejemplar {
 
     private static final List<String> ESTADOS_VALIDOS = Arrays.asList("Disponible", "Prestado", "Dañado", "Extraviado");
 
+    // Constructor completo
     public Ejemplar(int idEjemplar, String codigo, String estado, String ubicacion, Libro libro) {
         this.idEjemplar = idEjemplar;
         this.codigo = codigo;
@@ -22,6 +23,16 @@ public class Ejemplar {
         this.libro = libro;
     }
 
+    // Constructor simplificado, útil para pruebas y formularios
+    public Ejemplar(int idEjemplar, String codigo, boolean disponible) {
+        this.idEjemplar = idEjemplar;
+        this.codigo = codigo;
+        this.estado = disponible ? "Disponible" : "Prestado";
+        this.ubicacion = "Sin asignar";
+        this.libro = null;
+    }
+
+    // Métodos de comportamiento
     public void cambiarEstado(String nuevoEstado) {
         setEstado(nuevoEstado);
     }
@@ -45,34 +56,14 @@ public class Ejemplar {
         this.estado = estado;
     }
 
-    // Getters y setters estándar
-    public int getIdEjemplar() {
-        return idEjemplar;
-    }
-
-    public String getCodigo() {
-        return codigo;
-    }
-
-    public String getEstado() {
-        return estado;
-    }
-
-    public String getUbicacion() {
-        return ubicacion;
-    }
-
-    public void setUbicacion(String ubicacion) {
-        this.ubicacion = ubicacion;
-    }
-
-    public Libro getLibro() {
-        return libro;
-    }
-
-    public void setLibro(Libro libro) {
-        this.libro = libro;
-    }
+    // Getters y setters
+    public int getIdEjemplar() { return idEjemplar; }
+    public String getCodigo() { return codigo; }
+    public String getEstado() { return estado; }
+    public String getUbicacion() { return ubicacion; }
+    public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
+    public Libro getLibro() { return libro; }
+    public void setLibro(Libro libro) { this.libro = libro; }
 
     @Override
     public String toString() {
@@ -97,4 +88,5 @@ public class Ejemplar {
         return Objects.hash(codigo);
     }
 }
+
 

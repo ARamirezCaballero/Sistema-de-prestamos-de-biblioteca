@@ -6,6 +6,7 @@ import biblioteca.entities.reportes.Historial;
 import java.util.ArrayList;
 import java.util.List;
 
+
 /**
  * Servicio para realizar consultas sobre préstamos y generar reportes históricos
  * de usuarios y libros en la biblioteca.

@@ -1,6 +1,7 @@
 package biblioteca.services;
 
 import biblioteca.entities.usuarios.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +11,24 @@ public class ControlUsuarios {
 
     public ControlUsuarios() {
         this.usuarios = new ArrayList<>();
+
+        // === Bibliotecario por defecto ===
+        Bibliotecario admin = new Bibliotecario(
+                1,
+                "Ana",
+                "Pérez",
+                "12345678",
+                "ana.perez@biblioteca.com",
+                "3875000000",
+                LocalDate.of(1990, 5, 12),
+                TipoUsuario.BIBLIOTECARIO,
+                "admin",
+                "admin123",
+                "B001",
+                "Mañana"
+        );
+
+        usuarios.add(admin);
     }
 
     // ========================= REGISTROS =========================
@@ -27,21 +46,6 @@ public class ControlUsuarios {
 
         usuarios.add(socio);
         System.out.println("Socio registrado exitosamente: " + socio.getNombreCompleto());
-    }
-
-    public void registrarBibliotecario(Bibliotecario bibliotecario) {
-        if (bibliotecario == null) {
-            System.out.println("Error: el bibliotecario no puede ser nulo.");
-            return;
-        }
-
-        if (buscarPorDni(bibliotecario.getDni()) != null) {
-            System.out.println("Error: ya existe un usuario con el DNI " + bibliotecario.getDni());
-            return;
-        }
-
-        usuarios.add(bibliotecario);
-        System.out.println("Bibliotecario registrado: " + bibliotecario.getNombreCompleto());
     }
 
     // ========================= VALIDACIONES =========================

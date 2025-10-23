@@ -16,9 +16,11 @@ public class Prestamo {
     private int diasPrestamo;
     private Socio socio;
     private Ejemplar ejemplar;
+    private PoliticaPrestamo politica;
+
 
     public Prestamo(int id, LocalDate fechaPrestamo, LocalDate fechaVencimiento,
-                    String estado, int diasPrestamo, Socio socio, Ejemplar ejemplar) {
+                    String estado, int diasPrestamo, Socio socio, Ejemplar ejemplar, PoliticaPrestamo politica) {
         if (fechaPrestamo == null || fechaVencimiento == null) {
             throw new IllegalArgumentException("Las fechas de préstamo y vencimiento no pueden ser nulas.");
         }
@@ -39,11 +41,14 @@ public class Prestamo {
         this.ejemplar = ejemplar;
         this.diasPrestamo = (int) ChronoUnit.DAYS.between(fechaPrestamo, fechaVencimiento);
         this.estado = "Activo";
+        this.politica = politica;
 
         // Marcar el ejemplar como prestado
         this.ejemplar.marcarComoPrestado();
         // Asociar este préstamo al socio
         this.socio.agregarPrestamo(this);
+
+
     }
 
     public int calcularDiasVencimiento() {
@@ -86,6 +91,9 @@ public class Prestamo {
     public String getEstado() { return estado; }
     public int getDiasPrestamo() { return diasPrestamo; }
     public void setEstado(String estado) { this.estado = estado; }
+    public PoliticaPrestamo getPolitica() {
+        return politica;
+    }
 
     @Override
     public String toString() {

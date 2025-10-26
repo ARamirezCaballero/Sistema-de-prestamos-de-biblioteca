@@ -111,7 +111,7 @@ public class PantallaHistorial {
         }
     }
 
-    /** Muestra todo el historial del sistema*/
+    /** Muestra all el historial del sistema*/
     private void mostrarHistorialCompleto() {
         controlHistorial.mostrarHistorialCompleto();
     }

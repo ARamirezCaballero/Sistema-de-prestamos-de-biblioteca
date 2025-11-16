@@ -1,5 +1,7 @@
 package biblioteca.entities.inventario;
 
+import biblioteca.entities.prestamos.Prestamo;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -73,8 +75,16 @@ public class Ejemplar {
         cambiarEstadoBD("Disponible");
     }
 
+    public static boolean esEstadoValido(String estado) {
+        return ESTADOS_VALIDOS.contains(estado);
+    }
+
     // ======== Getters y Setters ========
     public int getIdEjemplar() { return idEjemplar; }
+    public void setIdEjemplar(int idEjemplar) {
+        if (idEjemplar <= 0) throw new IllegalArgumentException("El ID del ejemplar debe ser positivo.");
+        this.idEjemplar = idEjemplar;
+    }
     public String getCodigo() { return codigo; }
     public String getEstado() { return estado; }
     public void setEstado(String estado) {
@@ -110,6 +120,3 @@ public class Ejemplar {
         return Objects.hash(codigo);
     }
 }
-
-
-

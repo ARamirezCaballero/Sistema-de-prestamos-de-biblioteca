@@ -1,90 +1,131 @@
 package biblioteca.services;
 
-import biblioteca.data.BaseDatosSimulada;
+import biblioteca.data.dao.DAOException;
+import biblioteca.data.dao.DevolucionDAO;
+import biblioteca.data.dao.PrestamoDAO;
+import biblioteca.data.dao.EjemplarDAO;
 import biblioteca.entities.inventario.Ejemplar;
 import biblioteca.entities.prestamos.Devolucion;
 import biblioteca.entities.prestamos.Prestamo;
 import biblioteca.entities.usuarios.Socio;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-/**
- * Servicio que gestiona devoluciones.
- * Ahora recibe ControlHistorial para sincronizar devoluciones en el historial.
- */
 public class ControlDevoluciones {
 
     private final ControlHistorial controlHistorial;
+    private final PrestamoDAO prestamoDAO;
+    private final DevolucionDAO devolucionDAO;
+    private final EjemplarDAO ejemplarDAO;
+
     private static final double MULTA_POR_DIA = 50.0;
 
-    /**
-     * Constructor inyectando dependencia a ControlHistorial.
-     * Si querés crear una instancia sin historial (tests), podés pasar null.
-     */
-    public ControlDevoluciones(ControlHistorial controlHistorial) {
+    public ControlDevoluciones(ControlHistorial controlHistorial,
+                               PrestamoDAO prestamoDAO,
+                               DevolucionDAO devolucionDAO,
+                               EjemplarDAO ejemplarDAO) {
         this.controlHistorial = controlHistorial;
+        this.prestamoDAO = prestamoDAO;
+        this.devolucionDAO = devolucionDAO;
+        this.ejemplarDAO = ejemplarDAO;
     }
 
-    /** Valida si el préstamo existe y puede devolverse */
-    public boolean validarPrestamo(int idPrestamo) {
-        for (Prestamo p : BaseDatosSimulada.getPrestamos()) {
-            if (p.getId() == idPrestamo) {
-                p.actualizarEstado();
-                return p.getEstado().equalsIgnoreCase("Activo")
-                        || p.getEstado().equalsIgnoreCase("Vencido");
-            }
+    // Para UI
+    public List<Prestamo> getPrestamos() throws DAOException {
+        return prestamoDAO.listarTodos();
+    }
+
+    // Reglas básicas: préstamo debe existir y estar en estado válido para devolver
+    public boolean validarPrestamo(int idPrestamo) throws DAOException {
+        Prestamo p = prestamoDAO.buscarPorId(idPrestamo);
+        if (p == null) return false;
+
+        p.actualizarEstado(); // recalcula "Activo" / "Vencido"
+
+        return p.getEstado().equalsIgnoreCase("Activo")
+                || p.getEstado().equalsIgnoreCase("Vencido");
+    }
+
+    /**
+     * Busca y valida un préstamo para devolución.
+     * Encapsula la lógica de búsqueda y validación para cumplir con MVC.
+     *
+     * @param idPrestamo ID del préstamo a buscar y validar
+     * @return Prestamo válido para devolución
+     * @throws DAOException Si el préstamo no existe o no es válido para devolución
+     */
+    public Prestamo buscarYValidarPrestamoParaDevolucion(int idPrestamo) throws DAOException {
+        Prestamo prestamo = prestamoDAO.buscarPorId(idPrestamo);
+
+        if (prestamo == null) {
+            throw new DAOException("Préstamo no encontrado con ID: " + idPrestamo);
         }
-        return false;
+
+        if (!validarPrestamo(idPrestamo)) {
+            throw new DAOException("El préstamo no puede devolverse (ya devuelto o inválido). ID: " + idPrestamo);
+        }
+
+        return prestamo;
     }
 
-    /** Calcula multa si la devolución se realiza después del vencimiento */
+    // Cálculo independiente
     public double calcularMulta(Prestamo prestamo) {
         LocalDate hoy = LocalDate.now();
         if (hoy.isAfter(prestamo.getFechaVencimiento())) {
-            long diasAtraso = java.time.temporal.ChronoUnit.DAYS
-                    .between(prestamo.getFechaVencimiento(), hoy);
+            long diasAtraso = ChronoUnit.DAYS.between(prestamo.getFechaVencimiento(), hoy);
             return diasAtraso * MULTA_POR_DIA;
         }
         return 0.0;
     }
 
-    /** Libera el ejemplar asociado, marcándolo como disponible */
-    public void liberarEjemplar(Prestamo prestamo) {
-        Ejemplar ejemplar = prestamo.getEjemplar();
-        if (ejemplar != null) ejemplar.marcarComoDisponible();
+    // Lógica de actualización del ejemplar
+    private void liberarEjemplar(Prestamo prestamo, String nuevoEstado) {
+        Ejemplar ej = prestamo.getEjemplar();
+        if (ej != null) {
+            ej.setEstado(nuevoEstado != null && !nuevoEstado.isBlank() ? nuevoEstado : "Disponible");
+        }
     }
 
-    /** Registra la devolución en la base de datos simulada y en el historial */
+    /**
+     * Caso de uso completo: registrar la devolución, actualizar estados y persistir.
+     */
     public Devolucion registrarDevolucion(int idPrestamo, String estadoEjemplar, String observaciones) throws Exception {
-        Prestamo prestamo = BaseDatosSimulada.getPrestamos().stream()
-                .filter(p -> p.getId() == idPrestamo)
-                .findFirst()
-                .orElseThrow(() -> new Exception("Préstamo no encontrado."));
+
+        Prestamo prestamo = prestamoDAO.buscarPorId(idPrestamo);
+        if (prestamo == null)
+            throw new Exception("Préstamo no encontrado.");
 
         if (!validarPrestamo(idPrestamo))
-            throw new Exception("El préstamo no está activo o ya fue devuelto.");
+            throw new Exception("El préstamo no puede devolverse (ya devuelto o inválido).");
 
         double multa = calcularMulta(prestamo);
 
+        estadoEjemplar = (estadoEjemplar == null || estadoEjemplar.isBlank())
+                ? "Disponible"
+                : estadoEjemplar;
+
+        // Crear devolución (sin efectos colaterales)
         Devolucion devolucion = new Devolucion(
-                BaseDatosSimulada.getDevoluciones().size() + 1,
+                0,
                 LocalDate.now(),
                 estadoEjemplar,
-                observaciones,
+                observaciones != null ? observaciones : "",
                 prestamo,
                 multa
         );
 
-        // Actualiza estado del préstamo y del ejemplar (Devolucion ctor ya hace parte de esto,
-        // pero lo dejamos por claridad si fuera necesario)
+        // --- Mutaciones de dominio ---
         prestamo.marcarComoDevuelto();
-        liberarEjemplar(prestamo);
+        liberarEjemplar(prestamo, estadoEjemplar);
 
-        // Guarda en la BD simulada
-        BaseDatosSimulada.agregarDevolucion(devolucion);
+        // --- Persistencia ---
+        devolucionDAO.insertar(devolucion);
+        prestamoDAO.actualizar(prestamo);
+        ejemplarDAO.actualizar(prestamo.getEjemplar());
 
-        // Registra la devolución en el historial (si tenemos el controlHistorial disponible)
+        // --- Historial del socio ---
         Socio socio = prestamo.getSocio();
         if (controlHistorial != null && socio != null) {
             controlHistorial.registrarDevolucion(socio, devolucion);
@@ -92,11 +133,4 @@ public class ControlDevoluciones {
 
         return devolucion;
     }
-
-    /** Accesos a la base simulada */
-    public List<Prestamo> getPrestamos() { return BaseDatosSimulada.getPrestamos(); }
-    public List<Devolucion> getDevoluciones() { return BaseDatosSimulada.getDevoluciones(); }
 }
-
-
-

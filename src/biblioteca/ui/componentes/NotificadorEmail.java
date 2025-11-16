@@ -1,30 +1,26 @@
 package biblioteca.ui.componentes;
 
-import biblioteca.entities.usuarios.Usuario;
-import biblioteca.entities.prestamos.Prestamo;
-import biblioteca.services.ControlNotificaciones;
+import biblioteca.entities.notificaciones.Notificacion;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
-/**
- * Simula el envío de notificaciones por email a los socios con préstamos próximos a vencer o vencidos.
- * Controlador asociado: ControlNotificaciones
- */
 public class NotificadorEmail {
 
-    private String servidor;
-    private int puerto;
+    private final String servidor;
+    private final int puerto;
     private boolean conectado;
-    private final ControlNotificaciones controlNotificaciones;
 
-    public NotificadorEmail(String servidor, int puerto, ControlNotificaciones controlNotificaciones) {
+    public NotificadorEmail(String servidor, int puerto) {
         this.servidor = servidor;
         this.puerto = puerto;
-        this.controlNotificaciones = controlNotificaciones;
         this.conectado = false;
     }
 
-    /** Simula conexión al servidor de correo */
+    public static NotificadorEmail defaultFake() {
+        return new NotificadorEmail("smtp.local", 25);
+    }
+
     public void conectar() {
         if (servidor == null || servidor.isBlank() || puerto <= 0) {
             System.out.println("Error: servidor o puerto inválido.");
@@ -34,12 +30,12 @@ public class NotificadorEmail {
         System.out.println("Conectado al servidor de email " + servidor + ":" + puerto);
     }
 
-    /** Simula envío de email */
-    public void enviarEmail(String destinatario, String asunto, String mensaje) {
+    public void enviar(String destinatario, String asunto, String mensaje) {
         if (!conectado) {
             System.out.println("No conectado al servidor. Conecte primero.");
             return;
         }
+
         if (!validarEmail(destinatario)) {
             System.out.println("Email inválido: " + destinatario);
             return;
@@ -52,17 +48,13 @@ public class NotificadorEmail {
         System.out.println("Email enviado (simulado).");
     }
 
-    /** Simula desconexión del servidor */
     public void desconectar() {
         if (conectado) {
             conectado = false;
             System.out.println("Desconectado del servidor de email.");
-        } else {
-            System.out.println("Ya estaba desconectado.");
         }
     }
 
-    /** Valida sintaxis básica de un email */
     public boolean validarEmail(String email) {
         if (email == null) return false;
         String regex = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
@@ -70,32 +62,31 @@ public class NotificadorEmail {
     }
 
     /**
-     * Envía notificaciones de préstamos próximos a vencer o vencidos
-     * recorriendo las notificaciones generadas por ControlNotificaciones.
+     * Envía un lote de notificaciones que el servicio de negocio ya preparó.
      */
-    public void enviarNotificacionPrestamo() {
-        conectar();
-
-        if (controlNotificaciones.getNotificaciones().isEmpty()) {
-            System.out.println("No hay notificaciones pendientes para enviar.");
-            desconectar();
+    public void enviarNotificaciones(List<Notificacion> notificaciones) {
+        if (notificaciones == null || notificaciones.isEmpty()) {
+            System.out.println("No hay notificaciones pendientes.");
             return;
         }
 
-        for (var n : controlNotificaciones.getNotificaciones()) {
-            Usuario socio = n.getDestinatario();
-            if (socio != null && validarEmail(socio.getEmail())) {
-                enviarEmail(
-                        socio.getEmail(),
-                        "Notificación de Biblioteca",
-                        n.getMensaje()
-                );
-            } else {
-                System.out.println("No se puede enviar notificación: email inválido o socio nulo.");
+        conectar();
+
+        for (Notificacion n : notificaciones) {
+            String email = n.getDestinatario().getEmail();
+
+            System.out.println("→ Enviando notificación a " + email
+                    + " | Mensaje: " + n.getMensaje());
+
+            if (!validarEmail(email)) {
+                System.out.println("Email inválido. Se omite el envío.");
+                continue;
             }
+
+            enviar(email, "Notificación de Biblioteca", n.getMensaje());
         }
 
         desconectar();
+        System.out.println("=== Envío de notificaciones finalizado ===");
     }
-
 }

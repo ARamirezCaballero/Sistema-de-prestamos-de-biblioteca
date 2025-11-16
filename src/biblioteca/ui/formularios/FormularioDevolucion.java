@@ -1,5 +1,6 @@
 package biblioteca.ui.formularios;
 
+import biblioteca.data.dao.DAOException;
 import biblioteca.entities.prestamos.Devolucion;
 import biblioteca.entities.prestamos.Prestamo;
 import biblioteca.services.ControlDevoluciones;
@@ -8,8 +9,8 @@ import java.util.Scanner;
 
 public class FormularioDevolucion {
 
-    private ControlDevoluciones controlDevoluciones;
-    private Scanner scanner;
+    private final ControlDevoluciones controlDevoluciones;
+    private final Scanner scanner;
 
     public FormularioDevolucion(ControlDevoluciones controlDevoluciones) {
         this.controlDevoluciones = controlDevoluciones;
@@ -17,16 +18,20 @@ public class FormularioDevolucion {
     }
 
     public void mostrarFormulario() {
-        System.out.println("=== REGISTRO DE DEVOLUCIÓN ===");
+        System.out.println("\n=== REGISTRO DE DEVOLUCIÓN ===");
+
         try {
-            Prestamo prestamo = buscarPrestamo();
-            if (prestamo == null) {
-                mostrarError("No se encontró el préstamo o no es válido para devolución.");
+            Prestamo prestamo = solicitarPrestamo();
+
+            String estadoEjemplar = solicitarEstado();
+            String observaciones = solicitarObservaciones();
+
+            System.out.print("¿Confirmar devolución? (S/N): ");
+            String resp = scanner.nextLine().trim();
+            if (!resp.equalsIgnoreCase("S")) {
+                System.out.println("Devolución cancelada por el usuario.");
                 return;
             }
-
-            String estadoEjemplar = ingresarEstadoEjemplar();
-            String observaciones = ingresarObservaciones();
 
             Devolucion devolucion = controlDevoluciones.registrarDevolucion(
                     prestamo.getId(),
@@ -39,33 +44,42 @@ public class FormularioDevolucion {
         } catch (NumberFormatException e) {
             mostrarError("ID de préstamo inválido. Debe ser un número entero.");
         } catch (Exception e) {
-            mostrarError(e.getMessage());
+            mostrarError("Error durante la devolución: " + e.getMessage());
         }
     }
 
-    private Prestamo buscarPrestamo() {
-        System.out.print("Ingrese ID del préstamo: ");
-        int id = Integer.parseInt(scanner.nextLine());
-        return controlDevoluciones.getPrestamos().stream()
-                .filter(p -> p.getId() == id && controlDevoluciones.validarPrestamo(id))
-                .findFirst()
-                .orElse(null);
+    private Prestamo solicitarPrestamo() {
+        while (true) {
+            try {
+                System.out.print("Ingrese ID del préstamo: ");
+                int id = Integer.parseInt(scanner.nextLine().trim());
+
+                Prestamo prestamo = controlDevoluciones.buscarYValidarPrestamoParaDevolucion(id);
+                return prestamo;
+
+            } catch (NumberFormatException e) {
+                System.out.println("Entrada inválida. Debe ingresar un número entero.");
+            } catch (DAOException e) {
+                System.out.println("Error: " + e.getMessage() + " Intente nuevamente.");
+            }
+        }
     }
 
-    private String ingresarEstadoEjemplar() {
-        System.out.println("Ingrese estado final del ejemplar (Disponible, Dañado, Extraviado): ");
-        String estado;
+    private String solicitarEstado() {
+        System.out.println("Ingrese estado final del ejemplar (Disponible, Dañado, Extraviado):");
         while (true) {
-            estado = scanner.nextLine().trim();
+            String estado = scanner.nextLine().trim();
             if (estado.isBlank()) estado = "Disponible";
-            if (estado.equalsIgnoreCase("Disponible") || estado.equalsIgnoreCase("Dañado") || estado.equalsIgnoreCase("Extraviado"))
-                break;
+            if (estado.equalsIgnoreCase("Disponible") ||
+                    estado.equalsIgnoreCase("Dañado") ||
+                    estado.equalsIgnoreCase("Extraviado")) {
+                return estado;
+            }
             System.out.println("Estado inválido. Debe ser Disponible, Dañado o Extraviado.");
         }
-        return estado;
     }
 
-    private String ingresarObservaciones() {
+    private String solicitarObservaciones() {
         System.out.print("Ingrese observaciones (opcional): ");
         return scanner.nextLine().trim();
     }
@@ -79,4 +93,3 @@ public class FormularioDevolucion {
         System.out.println("ERROR: " + mensaje);
     }
 }
-

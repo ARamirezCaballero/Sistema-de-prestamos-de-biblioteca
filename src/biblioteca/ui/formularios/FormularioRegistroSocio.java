@@ -1,21 +1,19 @@
 package biblioteca.ui.formularios;
 
-import biblioteca.data.BaseDatosSimulada;
+import biblioteca.data.dao.DAOException;
 import biblioteca.entities.usuarios.Socio;
 import biblioteca.entities.usuarios.TipoUsuario;
 import biblioteca.services.ControlUsuarios;
 import biblioteca.services.ControlValidaciones;
 
 import java.time.LocalDate;
-import java.util.InputMismatchException;
 import java.util.Scanner;
 
 /**
  * Formulario para el caso de uso CU01 – Registrar Socio.
- * Permite al usuario registrarse en el sistema con sus datos personales
- * y credenciales de acceso, validando los datos ingresados.
  */
 public class FormularioRegistroSocio {
+
     private final ControlUsuarios controlUsuarios;
     private final ControlValidaciones controlValidaciones;
     private final Scanner scanner;
@@ -31,7 +29,6 @@ public class FormularioRegistroSocio {
     /** Flujo principal del formulario */
     public void mostrarFormulario() {
         System.out.println("\n=== REGISTRO DE NUEVO SOCIO ===");
-
         try {
             ingresarDatos();
             if (validarDatos()) {
@@ -45,68 +42,53 @@ public class FormularioRegistroSocio {
     }
 
     /** Solicita los datos personales y credenciales del nuevo socio */
-    public void ingresarDatos() {
-        try {
-            // Generar automáticamente ID y número de socio
-            int id = BaseDatosSimulada.generarNuevoIdSocio();
-            int numeroSocio = BaseDatosSimulada.generarNuevoNumeroSocio();
+    private void ingresarDatos() {
+        System.out.print("Nombre: ");
+        String nombre = scanner.nextLine().trim();
 
-            System.out.print("Nombre: ");
-            String nombre = scanner.nextLine();
+        System.out.print("Apellido: ");
+        String apellido = scanner.nextLine().trim();
 
-            System.out.print("Apellido: ");
-            String apellido = scanner.nextLine();
+        System.out.print("DNI: ");
+        String dni = scanner.nextLine().trim();
 
-            System.out.print("DNI: ");
-            String dni = scanner.nextLine();
+        System.out.print("Email: ");
+        String email = scanner.nextLine().trim();
 
-            System.out.print("Email: ");
-            String email = scanner.nextLine();
+        System.out.print("Teléfono: ");
+        String telefono = scanner.nextLine().trim();
 
-            System.out.print("Teléfono: ");
-            String telefono = scanner.nextLine();
-
-            System.out.print("Nombre de usuario: ");
-            String usuario = scanner.nextLine();
-
-            System.out.print("Contraseña: ");
-            String contrasenia = scanner.nextLine();
-
-            LocalDate fechaAlta = LocalDate.now();
-            LocalDate vencimientoCarnet = fechaAlta.plusYears(1);
-            String estado = "Activo";
-
-            socioTemporal = new Socio(
-                    id,
-                    nombre,
-                    apellido,
-                    dni,
-                    email,
-                    telefono,
-                    fechaAlta,
-                    TipoUsuario.SOCIO,
-                    usuario,
-                    contrasenia,
-                    numeroSocio,
-                    vencimientoCarnet,
-                    estado,
-                    false,
-                    false
-            );
-
-            System.out.println("\nID asignado automáticamente: " + id);
-            System.out.println("Número de socio asignado: " + numeroSocio);
-
-        } catch (InputMismatchException e) {
-            scanner.nextLine();
-            throw new IllegalArgumentException("Entrada inválida. Verifique los campos numéricos.");
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Error en los datos: " + e.getMessage());
+        String categoria;
+        while (true) {
+            System.out.print("Categoría (General / Estudiante / Docente): ");
+            categoria = scanner.nextLine().trim();
+            if (categoria.isBlank()) categoria = "General";
+            if (categoria.equalsIgnoreCase("General") ||
+                    categoria.equalsIgnoreCase("Estudiante") ||
+                    categoria.equalsIgnoreCase("Docente")) break;
+            System.out.println("Categoría inválida. Intente nuevamente.");
         }
+
+        System.out.print("Nombre de usuario: ");
+        String usuario = scanner.nextLine().trim();
+
+        System.out.print("Contraseña: ");
+        String contrasenia = scanner.nextLine().trim();
+
+        socioTemporal = new Socio(
+                nombre,
+                apellido,
+                dni,
+                email,
+                telefono,
+                usuario,
+                contrasenia,
+                categoria
+        );
     }
 
     /** Valida los datos del socio usando ControlValidaciones */
-    public boolean validarDatos() {
+    private boolean validarDatos() {
         if (socioTemporal == null) {
             mostrarError("No se han ingresado datos del socio.");
             return false;
@@ -115,26 +97,35 @@ public class FormularioRegistroSocio {
     }
 
     /** Confirma y ejecuta el registro */
-    public void confirmarRegistro() {
+    private void confirmarRegistro() {
         if (socioTemporal == null) {
             mostrarError("No hay datos para registrar.");
             return;
         }
 
         System.out.print("¿Desea confirmar el registro de este socio? (S/N): ");
-        String respuesta = scanner.nextLine();
+        String respuesta = scanner.nextLine().trim();
 
-        if (respuesta.equalsIgnoreCase("S")) {
-            controlUsuarios.registrarSocio(socioTemporal);
-        } else {
+        if (!respuesta.equalsIgnoreCase("S")) {
             System.out.println("Registro cancelado por el usuario.");
+            socioTemporal = null;
+            return;
         }
 
-        socioTemporal = null;
+        try {
+            // Delegar registro a ControlUsuarios
+            controlUsuarios.registrarSocio(socioTemporal);
+            System.out.println("Socio registrado exitosamente: " + socioTemporal.getNombreCompleto());
+        } catch (DAOException e) {
+            mostrarError("No se pudo registrar el socio: " + e.getMessage());
+        } finally {
+            socioTemporal = null; // Limpiar datos temporales
+        }
     }
 
-    /** Muestra un mensaje de error estandarizado */
-    public void mostrarError(String mensaje) {
+    private void mostrarError(String mensaje) {
         System.out.println("ERROR: " + mensaje);
     }
 }
+
+

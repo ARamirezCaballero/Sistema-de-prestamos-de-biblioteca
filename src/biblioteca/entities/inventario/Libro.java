@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class Libro {
-    private final int id;
+    private int id; // mutable ahora para poder asignar el ID generado tras insertar
     private String titulo;
     private String autor;
     private final String isbn;
@@ -17,7 +17,7 @@ public class Libro {
     public Libro(int id, String titulo, String autor, String isbn, String categoria,
                  String editorial, int anioPublicacion) {
 
-        if (id <= 0) throw new IllegalArgumentException("El ID del libro debe ser positivo.");
+        if (id < 0) throw new IllegalArgumentException("El ID del libro no puede ser negativo.");
         if (titulo == null || titulo.isBlank()) throw new IllegalArgumentException("El título no puede estar vacío.");
         if (autor == null || autor.isBlank()) throw new IllegalArgumentException("El autor no puede estar vacío.");
         if (isbn == null || isbn.isBlank()) throw new IllegalArgumentException("El ISBN no puede estar vacío.");
@@ -31,6 +31,12 @@ public class Libro {
         this.editorial = editorial;
         this.anioPublicacion = anioPublicacion;
         this.ejemplares = new ArrayList<>();
+    }
+
+    // Setter para el DAO
+    public void setId(int id) {
+        if (id <= 0) throw new IllegalArgumentException("El ID del libro debe ser positivo.");
+        this.id = id;
     }
 
     // metodos funcionales
@@ -52,7 +58,7 @@ public class Libro {
     }
 
     public List<Ejemplar> obtenerEjemplares() {
-        return new ArrayList<>(ejemplares); // copia defensiva
+        return new ArrayList<>(ejemplares);
     }
 
     public int contarEjemplaresDisponibles() {
@@ -130,4 +136,5 @@ public class Libro {
         return Objects.hash(isbn);
     }
 }
+
 

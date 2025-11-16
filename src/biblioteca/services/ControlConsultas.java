@@ -1,156 +1,112 @@
 package biblioteca.services;
 
-import biblioteca.data.BaseDatosSimulada;
+import biblioteca.data.dao.LibroDAO;
+import biblioteca.data.dao.PrestamoDAO;
+import biblioteca.data.dao.DAOException;
+import biblioteca.entities.inventario.Libro;
 import biblioteca.entities.prestamos.Prestamo;
 import biblioteca.entities.reportes.Historial;
 
 import java.util.ArrayList;
 import java.util.List;
 
-
-/**
- * Servicio para realizar consultas sobre préstamos y generar reportes históricos
- * de usuarios y libros en la biblioteca.
- */
 public class ControlConsultas {
 
-    /** Lista simulando la base de datos de préstamos */
-    private List<Prestamo> prestamos;
+    private final LibroDAO libroDAO;
+    private final PrestamoDAO prestamoDAO;
 
-    /** Lista simulando la base de datos de historiales */
-    private List<Historial> historiales;
+    // Lista temporal en memoria para historiales de sesión activa (no persistente)
+    // Si se requiere persistencia, debe usarse HistorialDAO
+    private final List<Historial> historiales;
 
-    /** Constructor que inicializa las listas internas */
-    public ControlConsultas() {
-        this.prestamos = new ArrayList<>();
+    public ControlConsultas(LibroDAO libroDAO, PrestamoDAO prestamoDAO) {
+        this.libroDAO = libroDAO;
+        this.prestamoDAO = prestamoDAO;
         this.historiales = new ArrayList<>();
     }
 
-    /**
-     * Consulta los historiales asociados a un usuario específico.
-     * @param idUsuario ID del usuario
-     * @return Lista de historiales correspondientes al usuario
-     */
+    public void agregarHistorial(Historial historial) {
+        if (historial != null) historiales.add(historial);
+    }
+
+    // CONSULTAS A NIVEL SOCIO
     public List<Historial> consultarHistorialUsuario(int idUsuario) {
         List<Historial> resultado = new ArrayList<>();
         for (Historial h : historiales) {
-            if (h.getId() == idUsuario || (h.getSocio() != null && h.getSocio().getId() == idUsuario)) {
+            if (h.getSocio() != null && h.getSocio().getId() == idUsuario) {
                 resultado.add(h);
             }
         }
         return resultado;
     }
 
-    /**
-     * Consulta los historiales asociados a un libro específico.
-     * @param idLibro ID del libro
-     * @return Lista de historiales que incluyen el libro
-     */
-    public List<Historial> consultarHistorialLibro(int idLibro) {
+    // CONSULTAS A NIVEL LIBRO
+    public List<Historial> consultarHistorialLibro(String isbn) throws DAOException {
         List<Historial> resultado = new ArrayList<>();
+        Libro libro = libroDAO.obtenerPorISBN(isbn);
+        if (libro == null) return resultado;
+
+        int idLibro = libro.getId();
+
         for (Historial h : historiales) {
             for (Prestamo p : h.obtenerPrestamos()) {
-                if (p.getEjemplar() != null && p.getEjemplar().getLibro() != null
-                        && p.getEjemplar().getLibro().getId() == idLibro) {
+                if (p.getEjemplar() == null || p.getEjemplar().getLibro() == null) continue;
+
+                if (p.getEjemplar().getLibro().getId() == idLibro) {
                     resultado.add(h);
-                    break; // Evita agregar el mismo historial múltiples veces
+                    break;
                 }
             }
         }
+
         return resultado;
     }
 
+    // CONSULTA DIRECTA A PrestamoDAO
     /**
-     * Retorna todos los préstamos activos o vencidos,
-     * actualizando previamente su estado según la fecha.
-     * @return Lista de préstamos activos o vencidos
+     * Obtiene todos los préstamos de un socio por su DNI.
+     * Retorna List<Prestamo> para que la vista los presente.
      */
-    public List<Prestamo> buscarPrestamos() {
-        List<Prestamo> resultado = new ArrayList<>();
-        for (Prestamo p : prestamos) {
-            p.actualizarEstado(); // Asegura estado correcto según fecha
-            if (p.getEstado().equalsIgnoreCase("Activo") || p.getEstado().equalsIgnoreCase("Vencido")) {
-                resultado.add(p);
-            }
-        }
-        return resultado;
-    }
-
-    /**
-     * Genera un reporte textual de todos los préstamos activos y vencidos.
-     * @return String con el reporte
-     */
-    public String generarReporte() {
-        List<Prestamo> prestamos = BaseDatosSimulada.getPrestamos(); // TODOS los préstamos registrados
-        int total = prestamos.size();
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== REPORTE DE PRÉSTAMOS ACTIVOS/VENCIDOS ===\n");
-        sb.append("Total de préstamos: ").append(total).append("\n");
-
-        for (Prestamo p : prestamos) {
-            sb.append(String.format("Préstamo N°%d | Socio: %s | Ejemplar: %s | Estado: %s | Fecha préstamo: %s | Vence: %s%n",
-                    p.getId(),
-                    p.getSocio().getNombreCompleto(),
-                    p.getEjemplar().getCodigo(),
-                    p.getEstado(),
-                    p.getFechaPrestamo(),
-                    p.getFechaVencimiento()));
-        }
-
-        return sb.toString();
-    }
-
-
-    /**
-     * Agrega un préstamo al registro interno.
-     * @param prestamo Préstamo a agregar
-     */
-    public void agregarPrestamo(Prestamo prestamo) {
-        if (prestamo != null) {
-            prestamos.add(prestamo);
-        }
-    }
-
-    /**
-     * Agrega un historial al registro interno.
-     * @param historial Historial a agregar
-     */
-    public void agregarHistorial(Historial historial) {
-        if (historial != null) {
-            historiales.add(historial);
-        }
-    }
-
-    public void consultarHistorialPorSocio(String dniSocio) {
-        List<Prestamo> prestamosSocio = BaseDatosSimulada.getPrestamos().stream()
-                .filter(p -> p.getSocio() != null && p.getSocio().getDni().equals(dniSocio))
-                .toList();
-
-        if (prestamosSocio.isEmpty()) {
-            System.out.println("No se encontraron préstamos para el socio con DNI: " + dniSocio);
-            return;
-        }
-
-        System.out.println("=== HISTORIAL DEL SOCIO ===");
-        for (Prestamo p : prestamosSocio) {
-            System.out.printf("Préstamo N°%d | Libro: %s | Ejemplar: %s | Estado: %s | Fecha préstamo: %s | Vence: %s%n",
-                    p.getId(),
-                    p.getEjemplar() != null && p.getEjemplar().getLibro() != null ? p.getEjemplar().getLibro().getTitulo() : "Sin título",
-                    p.getEjemplar() != null ? p.getEjemplar().getCodigo() : "N/A",
-                    p.getEstado(),
-                    p.getFechaPrestamo(),
-                    p.getFechaVencimiento());
-        }
-    }
-
-
-    // Getters
-    public List<Prestamo> getPrestamos() {
-        return prestamos;
+    public List<Prestamo> consultarHistorialPorSocio(String dniSocio) throws DAOException {
+        return prestamoDAO.obtenerPorDniSocio(dniSocio);
     }
 
     public List<Historial> getHistoriales() {
         return historiales;
     }
+
+    /**
+     * Genera un reporte textual de todos los préstamos activos o vencidos en el sistema.
+     */
+    public String generarReporte() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== REPORTE DE PRÉSTAMOS ACTIVOS/VENCIDOS ===\n");
+
+        try {
+            List<Prestamo> todosPrestamos = prestamoDAO.listarTodos();
+
+            if (todosPrestamos.isEmpty()) {
+                sb.append("No hay préstamos registrados.\n");
+            } else {
+                sb.append("Total de préstamos: ").append(todosPrestamos.size()).append("\n");
+                for (Prestamo p : todosPrestamos) {
+                    sb.append(String.format(
+                            "Préstamo N°%d | Socio: %s | Ejemplar: %s | Estado: %s | Fecha préstamo: %s | Vence: %s%n",
+                            p.getId(),
+                            p.getSocio() != null ? p.getSocio().getNombreCompleto() : "N/A",
+                            p.getEjemplar() != null ? p.getEjemplar().getCodigo() : "N/A",
+                            p.getEstado(),
+                            p.getFechaPrestamo(),
+                            p.getFechaVencimiento()
+                    ));
+                }
+            }
+        } catch (DAOException e) {
+            sb.append("Error al generar el reporte: ").append(e.getMessage()).append("\n");
+        }
+
+        return sb.toString();
+    }
 }
+
+

@@ -9,7 +9,7 @@ import java.util.Objects;
 
 public class Comprobante {
 
-    private final int id;
+    private int id;
     private final LocalDate fechaEmision;
     private final String tipo;
     private String contenido;
@@ -66,6 +66,15 @@ public class Comprobante {
     public String getTipo() { return tipo; }
     public Prestamo getPrestamo() { return prestamo; }
     public String getContenido() { return contenido; }
+
+    // === Setters controlados ===
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public void setContenido(String contenido) {
+        this.contenido = contenido;
+    }
 
     @Override
     public boolean equals(Object o) {

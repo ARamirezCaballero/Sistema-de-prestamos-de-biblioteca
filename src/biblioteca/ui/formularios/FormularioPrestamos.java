@@ -1,21 +1,18 @@
 package biblioteca.ui.formularios;
 
-import biblioteca.data.BaseDatosSimulada;
+import biblioteca.data.dao.DAOException;
 import biblioteca.entities.inventario.Ejemplar;
+import biblioteca.entities.usuarios.Bibliotecario;
 import biblioteca.entities.usuarios.Socio;
 import biblioteca.entities.prestamos.Prestamo;
-import biblioteca.entities.usuarios.Usuario;
-import biblioteca.services.*;
 import biblioteca.entities.reportes.Comprobante;
+import biblioteca.services.ControlComprobantes;
+import biblioteca.services.ControlPrestamos;
+import biblioteca.services.ControlUsuarios;
 
-import java.time.LocalDate;
 import java.util.Scanner;
 
-/**
- * FormularioPrestamos
- * Capa de frontera: Interfaz con el usuario para registrar un préstamo.
- * Caso de uso CU03 – Registrar Préstamo.
- */
+
 public class FormularioPrestamos {
 
     private final ControlPrestamos controlPrestamos;
@@ -23,9 +20,11 @@ public class FormularioPrestamos {
     private final ControlUsuarios controlUsuarios;
     private final Scanner scanner;
 
-    public FormularioPrestamos(ControlPrestamos controlPrestamos,
-                               ControlValidaciones controlValidaciones,
-                               ControlComprobantes controlComprobantes, ControlUsuarios controlUsuarios, ControlPoliticas controlPoliticas) {
+    public FormularioPrestamos(
+            ControlPrestamos controlPrestamos,
+            ControlComprobantes controlComprobantes,
+            ControlUsuarios controlUsuarios
+    ) {
         this.controlPrestamos = controlPrestamos;
         this.controlComprobantes = controlComprobantes;
         this.controlUsuarios = controlUsuarios;
@@ -34,73 +33,89 @@ public class FormularioPrestamos {
 
     public void mostrarFormulario() {
         System.out.println("\n=== FORMULARIO DE PRÉSTAMOS ===");
-        iniciarRegistroPrestamo();
-    }
 
-    public void iniciarRegistroPrestamo() {
-        System.out.println("\n=== REGISTRO DE PRÉSTAMO ===");
-        try {
-            String[] datos = ingresarDatos(); // Paso 2
-            String dniSocio = datos[0];
-            String codigoEjemplar = datos[1];
+        boolean exito = false;
 
-            Prestamo prestamo = controlPrestamos.registrarPrestamo(dniSocio, codigoEjemplar); // Paso 3
-            confirmarPrestamo(prestamo); // Paso 26
+        while (!exito) {
+            try {
+                // --- Ingreso de datos ---
+                String dniSocio = ingresarDniSocio();
+                String codigoEjemplar = ingresarCodigoEjemplar();
 
-        } catch (Exception e) {
-            System.out.println("Error durante el registro del préstamo: " + e.getMessage());
+                // --- Validaciones y búsquedas ---
+                Socio socio = buscarSocio(dniSocio);
+                Ejemplar ejemplar = buscarEjemplar(codigoEjemplar);
+                Bibliotecario bibliotecario = buscarBibliotecario(1);
+
+                // --- Registrar préstamo ---
+                Prestamo prestamo = controlPrestamos.registrarPrestamo(socio, ejemplar, bibliotecario);
+
+                // --- Confirmación y comprobante ---
+                confirmarPrestamo(prestamo);
+                exito = true;
+
+            } catch (Exception e) {
+                System.out.println("ERROR: " + e.getMessage());
+                System.out.print("¿Desea intentar nuevamente? (S/N): ");
+                String resp = scanner.nextLine().trim();
+                if (!resp.equalsIgnoreCase("S")) {
+                    System.out.println("Registro de préstamo cancelado.");
+                    break;
+                }
+            }
         }
     }
 
-    // Paso 2
-    private String[] ingresarDatos() {
+    private String ingresarDniSocio() {
         System.out.print("Ingrese DNI del socio: ");
-        String dni = scanner.nextLine();
+        String dni;
+        while (true) {
+            dni = scanner.nextLine().trim();
+            if (!dni.isBlank()) return dni;
+            System.out.print("DNI no puede estar vacío. Intente nuevamente: ");
+        }
+    }
 
+    private String ingresarCodigoEjemplar() {
         System.out.print("Ingrese código del ejemplar: ");
-        String codigo = scanner.nextLine();
-
-        return new String[]{dni, codigo};
+        String codigo;
+        while (true) {
+            codigo = scanner.nextLine().trim();
+            if (!codigo.isBlank()) return codigo;
+            System.out.print("Código no puede estar vacío. Intente nuevamente: ");
+        }
     }
 
-
-    private void mostrarFechaCalculada(LocalDate fechaVencimiento) {
-        System.out.println("Fecha de devolución calculada: " + fechaVencimiento);
+    private Socio buscarSocio(String dni) throws DAOException {
+        var u = controlUsuarios.buscarPorDni(dni);
+        if (u == null) throw new IllegalArgumentException("No existe un socio con ese DNI.");
+        if (!(u instanceof Socio)) throw new IllegalArgumentException("El usuario no es socio.");
+        return (Socio) u;
     }
 
-    private void confirmarPrestamo(Prestamo p) {
-        System.out.println("\n=== Préstamo registrado exitosamente ===");
-        System.out.println("Socio: " + p.getSocio().getNombre());
-        System.out.println("Ejemplar: " + p.getEjemplar().getCodigo());
-        System.out.println("Fecha de vencimiento: " + p.getFechaVencimiento());
-        emitirComprobante(p.getSocio(), p.getEjemplar());
+    private Ejemplar buscarEjemplar(String codigo) throws DAOException {
+        Ejemplar e = controlPrestamos.buscarEjemplar(codigo);
+        if (e == null) throw new IllegalArgumentException("No existe un ejemplar con ese código.");
+        return e;
     }
 
-    private void emitirComprobante(Socio socio, Ejemplar ejemplar) {
-        Prestamo ultimo = controlPrestamos.getPrestamos()
-                .get(controlPrestamos.getPrestamos().size() - 1);
+    private Bibliotecario buscarBibliotecario(int id) throws DAOException {
+        Bibliotecario b = controlUsuarios.buscarBibliotecarioPorId(id);
+        if (b == null) throw new IllegalArgumentException("Bibliotecario no encontrado.");
+        return b;
+    }
 
-        Comprobante comprobante = controlComprobantes.generarComprobante("Préstamo", ultimo);
+    private void confirmarPrestamo(Prestamo prestamo) {
+        System.out.println("\n=== PRÉSTAMO REGISTRADO ===");
+        System.out.println("Socio: " + prestamo.getSocio().getNombreCompleto());
+        System.out.println("Ejemplar: " + prestamo.getEjemplar().getCodigo());
+        System.out.println("Fecha de vencimiento: " + prestamo.getFechaVencimiento());
+
+        Comprobante comprobante = controlComprobantes.generarComprobante("Préstamo", prestamo);
         controlComprobantes.emitirComprobante(comprobante);
-    }
 
-    private Socio buscarSocio(String dni) {
-        Usuario usuario = controlUsuarios.buscarPorDni(dni);
-        if (usuario == null) {
-            throw new IllegalArgumentException("No se encontró un socio con DNI: " + dni);
-        }
-        if (!(usuario instanceof Socio)) {
-            throw new IllegalArgumentException("El usuario con DNI " + dni + " no es un socio.");
-        }
-        return (Socio) usuario;
-    }
-
-    private Ejemplar buscarEjemplar(String codigo) {
-        Ejemplar ejemplar = BaseDatosSimulada.buscarEjemplarPorCodigo(codigo);
-        if (ejemplar == null) {
-            throw new IllegalArgumentException("No se encontró un ejemplar con código: " + codigo);
-        }
-        return ejemplar;
+        System.out.println("=== Préstamo finalizado ===");
     }
 }
+
 

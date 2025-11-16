@@ -1,7 +1,9 @@
 package biblioteca.entities.notificaciones;
 
 import biblioteca.entities.inventario.Ejemplar;
+import biblioteca.entities.prestamos.Prestamo;
 import biblioteca.entities.usuarios.Usuario;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -12,13 +14,23 @@ public class Notificacion {
     private LocalDateTime fechaHora;
     private Usuario destinatario;
     private Ejemplar ejemplarRelacionado;
+    private Prestamo prestamo;
 
-    public Notificacion(int idNotificacion, String mensaje, LocalDateTime fechaHora, Usuario destinatario, Ejemplar ejemplarRelacionado) {
+    private boolean leida;   // === NUEVO ===
+
+
+    public Notificacion(int idNotificacion,
+                        String mensaje,
+                        LocalDateTime fechaHora,
+                        Usuario destinatario,
+                        Ejemplar ejemplarRelacionado) {
+
         this.idNotificacion = idNotificacion;
         this.mensaje = mensaje;
         this.fechaHora = fechaHora;
         this.destinatario = destinatario;
         this.ejemplarRelacionado = ejemplarRelacionado;
+        this.leida = false;           // por defecto
     }
 
     // Getters y setters
@@ -58,6 +70,28 @@ public class Notificacion {
         this.ejemplarRelacionado = ejemplarRelacionado;
     }
 
+    public Prestamo getPrestamo() {
+        return prestamo;
+    }
+
+    public void setPrestamo(Prestamo prestamo) {
+        this.prestamo = prestamo;
+    }
+
+    // ===== Nuevo comportamiento =====
+    public boolean isLeida() {
+        return leida;
+    }
+
+    public void setLeida(boolean leida) {
+        this.leida = leida;
+    }
+
+    public void marcarComoLeida() {
+        this.leida = true;
+    }
+
+    // === Representación ===
     @Override
     public String toString() {
         return "Notificacion{" +
@@ -65,6 +99,7 @@ public class Notificacion {
                 ", fechaHora=" + fechaHora +
                 ", destinatario=" + (destinatario != null ? destinatario.getNombreCompleto() : "Sin destinatario") +
                 ", ejemplarRelacionado=" + (ejemplarRelacionado != null ? ejemplarRelacionado.getCodigo() : "Sin ejemplar") +
+                ", leida=" + leida +
                 '}';
     }
 
@@ -81,4 +116,5 @@ public class Notificacion {
         return Objects.hash(idNotificacion);
     }
 }
+
 

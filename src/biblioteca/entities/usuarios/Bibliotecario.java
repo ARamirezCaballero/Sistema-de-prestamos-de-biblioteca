@@ -28,6 +28,11 @@ public class Bibliotecario extends Usuario{
     public String getTipo() {
         return "Bibliotecario";
     }
+    @Override
+    public void setTipo(TipoUsuario tipoUsuario) {
+        // No hace nada, el tipo siempre es BIBLIOTECARIO
+    }
+
 
     public String getLegajo() {
         return legajo;

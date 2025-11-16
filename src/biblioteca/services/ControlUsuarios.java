@@ -1,131 +1,142 @@
 package biblioteca.services;
 
-import biblioteca.data.BaseDatosSimulada;
+import biblioteca.data.dao.BibliotecarioDAO;
+import biblioteca.data.dao.DAOException;
+import biblioteca.data.dao.SocioDAO;
 import biblioteca.entities.usuarios.*;
+
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 public class ControlUsuarios {
 
-    private List<Usuario> usuarios;
+    private final BibliotecarioDAO bibliotecarioDAO;
+    private final SocioDAO socioDAO;
 
-    public ControlUsuarios() {
-        this.usuarios = new ArrayList<>();
-
-        // === Bibliotecario por defecto ===
-        Bibliotecario admin = new Bibliotecario(
-                1,
-                "Ana",
-                "Pérez",
-                "12345678",
-                "ana.perez@biblioteca.com",
-                "3875000000",
-                LocalDate.of(1990, 5, 12),
-                TipoUsuario.BIBLIOTECARIO,
-                "admin",
-                "admin123",
-                "B001",
-                "Mañana"
-        );
-
-        usuarios.add(admin);
+    // Inyectar DAOs por constructor. No crear conexiones ni DAOs aquí.
+    public ControlUsuarios(BibliotecarioDAO bibliotecarioDAO, SocioDAO socioDAO) {
+        if (bibliotecarioDAO == null) throw new IllegalArgumentException("BibliotecarioDAO no puede ser nulo.");
+        if (socioDAO == null) throw new IllegalArgumentException("SocioDAO no puede ser nulo.");
+        this.bibliotecarioDAO = bibliotecarioDAO;
+        this.socioDAO = socioDAO;
     }
 
-    // ========================= REGISTROS =========================
-
-    public void registrarSocio(Socio socio) {
+    // === Registrar socio ===
+    public String registrarSocio(Socio socio) throws DAOException {
         if (socio == null) {
-            System.out.println("Error: el socio no puede ser nulo.");
-            return;
+            throw new IllegalArgumentException("El socio no puede ser nulo.");
         }
 
-        if (buscarPorDni(socio.getDni()) != null || BaseDatosSimulada.buscarSocioPorDni(socio.getDni()) != null) {
-            System.out.println("Error: ya existe un socio con el DNI " + socio.getDni());
-            return;
+        if (buscarPorDni(socio.getDni()) != null) {
+            throw new IllegalArgumentException("Ya existe un usuario con el DNI " + socio.getDni());
         }
 
-        usuarios.add(socio);
-        BaseDatosSimulada.agregarSocio(socio);
-        System.out.println("Socio registrado exitosamente: " + socio.getNombreCompleto());
+        // --- Completar campos técnicos ---
+        // Fecha de alta
+        LocalDate fechaAlta = LocalDate.now();
+        socio.setFechaAlta(fechaAlta);
+
+        // Número de socio
+        String numeroSocio = "SOC-" + System.currentTimeMillis() % 100000;
+        socio.setNumeroSocio(numeroSocio);
+
+        // Fecha de vencimiento del carnet (1 año)
+        socio.setFechaVencimientoCarnet(fechaAlta.plusYears(1));
+
+        // Estado activo
+        socio.setEstado("Activo");
+
+        // Inicializar sanciones y atrasos
+        socio.setTieneSanciones(false);
+        socio.setTieneAtrasos(false);
+
+        // Tipo de usuario (por si viene vacío)
+        if (socio.getTipo() == null) {
+            socio.setTipo(TipoUsuario.SOCIO);
+        }
+
+        // Persistir en la BD
+        socioDAO.insertar(socio);
+
+        return "Socio registrado exitosamente: " + socio.getNombreCompleto() +
+                ". Número de socio asignado: " + numeroSocio;
     }
 
-    // ========================= VALIDACIONES =========================
-
-    public boolean validarCredenciales(String usuario, String contrasenia) {
-        if (usuario == null || contrasenia == null) {
-            System.out.println("Error: usuario o contraseña vacíos.");
-            return false;
+    // === Registrar bibliotecario ===
+    public String registrarBibliotecario(Bibliotecario b) throws DAOException {
+        if (b == null) {
+            throw new IllegalArgumentException("El bibliotecario no puede ser nulo.");
         }
 
-        for (Usuario u : usuarios) {
-            if (u.validarCredenciales(usuario, contrasenia)) {
-                System.out.println("Acceso permitido para: " + u.getNombreCompleto());
-                return true;
-            }
+        if (buscarPorDni(b.getDni()) != null) {
+            throw new IllegalArgumentException("Ya existe un usuario con el DNI " + b.getDni());
         }
-        System.out.println("Credenciales incorrectas.");
-        return false;
+
+        bibliotecarioDAO.insertar(b);
+        return "Bibliotecario registrado exitosamente: " + b.getNombreCompleto();
     }
 
-    // ========================= OPERACIONES =========================
-
-    public void actualizarDatos(int idUsuario, String nuevoEmail, String nuevoTelefono) {
-        Usuario u = buscarUsuario(idUsuario);
-        if (u != null) {
-            System.out.println("Actualizando datos de: " + u.getNombreCompleto());
-            u.setEmail(nuevoEmail);
-            u.setTelefono(nuevoTelefono);
-            System.out.println("Datos actualizados correctamente.");
-        } else {
-            System.out.println("No se encontró usuario con ID " + idUsuario);
-        }
+    public Bibliotecario buscarBibliotecarioPorId(int id) throws DAOException {
+        return bibliotecarioDAO.buscarPorId(id);
     }
 
-    // ========================= BÚSQUEDAS =========================
+    // === Buscar usuario por DNI (DAO real para ambos roles) ===
+    public Usuario buscarPorDni(String dni) throws DAOException {
+        // Buscar bibliotecario en BD
+        Bibliotecario bibliotecario = bibliotecarioDAO.buscarPorDni(dni);
+        if (bibliotecario != null) return bibliotecario;
 
-    public Usuario buscarUsuario(int id) {
-        for (Usuario u : usuarios) {
-            if (u.getId() == id) {
-                return u;
-            }
-        }
+        // Buscar socio en BD
+        Socio socio = socioDAO.buscarPorDni(dni);
+        if (socio != null) return socio;
+
         return null;
     }
 
-    public Usuario buscarPorDni(String dni) {
-        for (Usuario u : usuarios) {
-            if (u.getDni().equalsIgnoreCase(dni)) {
-                return u;
-            }
+    // === Login (usando DAOs reales) ===
+    public Usuario login(String nombreUsuario, String contrasenia) throws DAOException {
+        // Bibliotecario desde BD real
+        Bibliotecario biblio = bibliotecarioDAO.buscarPorUsername(nombreUsuario);
+        if (biblio != null && biblio.getContrasenia().equals(contrasenia)) {
+            return biblio;
         }
+
+        // Socio desde BD real
+        Socio socio = socioDAO.buscarPorUsername(nombreUsuario);
+        if (socio != null && socio.getContrasenia().equals(contrasenia)) {
+            return socio;
+        }
+
         return null;
     }
 
-    public Socio loginSocio(String nombreUsuario, String contrasenia) {
-        return BaseDatosSimulada.getSocios().stream()
-                .filter(s -> s.getUsuario().equalsIgnoreCase(nombreUsuario)
-                        && s.getContrasenia().equals(contrasenia))
-                .findFirst()
-                .orElse(null);
-    }
-
-    // ========================= CONSULTAS =========================
-
-    public List<Usuario> obtenerTodos() {
-        return new ArrayList<>(usuarios);
-    }
-
-    public void mostrarUsuarios() {
-        if (usuarios.isEmpty()) {
-            System.out.println("No hay usuarios registrados.");
-            return;
+    // === Actualizar datos (solo Socio por ahora) ===
+    public String actualizarDatos(int idUsuario, String nuevoEmail, String nuevoTelefono) throws DAOException {
+        Socio socio = socioDAO.buscarPorId(idUsuario);
+        if (socio == null) {
+            throw new IllegalArgumentException("No se encontró socio con ID " + idUsuario);
         }
 
-        System.out.println("=== LISTADO DE USUARIOS ===");
-        for (Usuario u : usuarios) {
-            System.out.println(u);
-        }
+        socio.setEmail(nuevoEmail);
+        socio.setTelefono(nuevoTelefono);
+        socioDAO.actualizar(socio);
+
+        return "Datos actualizados correctamente para socio " + socio.getNombreCompleto();
+    }
+
+    // === Listar todos los usuarios (ahora desde la BD real) ===
+    public List<Usuario> listarTodosLosUsuarios() throws DAOException {
+        List<Usuario> usuarios = new java.util.ArrayList<>();
+
+        // Bibliotecarios desde BD real
+        List<Bibliotecario> bibliotecarios = bibliotecarioDAO.listarTodos();
+        usuarios.addAll(bibliotecarios);
+
+        // Socios desde BD real
+        List<Socio> socios = socioDAO.listarTodos();
+        usuarios.addAll(socios);
+
+        return usuarios;
     }
 }
 

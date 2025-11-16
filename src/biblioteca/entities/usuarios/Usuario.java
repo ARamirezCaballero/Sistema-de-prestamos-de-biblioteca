@@ -38,6 +38,12 @@ public abstract class Usuario {
         this.contrasenia = contrasenia;
     }
 
+    public Usuario(int id, String dni, TipoUsuario tipoUsuario) {
+        this.id = id;
+        this.dni = dni;
+        this.tipoUsuario = tipoUsuario;
+    }
+
     public boolean validarCredenciales(String usuarioIngresado, String contraseniaIngresada) {
         if (usuarioIngresado == null || contraseniaIngresada == null) return false;
         return Objects.equals(this.usuario, usuarioIngresado) &&
@@ -59,6 +65,9 @@ public abstract class Usuario {
     public TipoUsuario getTipoUsuario() { return tipoUsuario; }
     public String getUsuario() { return usuario; }
     public String getContrasenia() { return contrasenia; }
+
+    public void setId(int id) {
+    }
 
     public void setNombre(String nombre) {
         if (nombre == null || nombre.isBlank())
@@ -102,6 +111,11 @@ public abstract class Usuario {
                 " | Email: " + email +
                 " | Teléfono: " + telefono +
                 " | Alta: " + fechaAlta;
+    }
+
+    public abstract void setTipo(TipoUsuario tipoUsuario);
+    protected void setFechaAltaInterno(LocalDate fechaAlta) {
+        if (fechaAlta != null) this.fechaAlta = fechaAlta;
     }
 }
 

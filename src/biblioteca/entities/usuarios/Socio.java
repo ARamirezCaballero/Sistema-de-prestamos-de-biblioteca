@@ -7,18 +7,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Socio extends Usuario {
-    private int numeroSocio;
+    private String numeroSocio;
     private LocalDate fechaVencimientoCarnet;
     private String estado;
     private boolean tieneSanciones;
     private boolean tieneAtrasos;
     private List<Prestamo> prestamos;
+    private String categoria;
 
-    // Constructor simplificado para pruebas o carga simulada
+    // Constructor completo
     public Socio(int id, String nombre, String apellido, String dni, String email, String telefono,
                  LocalDate fechaAlta, TipoUsuario tipo, String usuario, String contrasenia,
-                 int numeroSocio, LocalDate fechaVencimientoCarnet, String estado,
-                 boolean tieneSanciones, boolean tieneAtrasos) {
+                 String numeroSocio, LocalDate fechaVencimientoCarnet, String estado,
+                 boolean tieneSanciones, boolean tieneAtrasos, String categoria) {
         super(id, nombre, apellido, dni, email, telefono, fechaAlta, tipo, usuario, contrasenia);
         this.numeroSocio = numeroSocio;
         this.fechaVencimientoCarnet = fechaVencimientoCarnet;
@@ -26,101 +27,96 @@ public class Socio extends Usuario {
         this.tieneSanciones = tieneSanciones;
         this.tieneAtrasos = tieneAtrasos;
         this.prestamos = new ArrayList<>();
+        setCategoria(categoria);
     }
 
+    // Constructor simplificado
+    public Socio(int id, String nombre, String apellido, String dni, String email, String telefono,
+                 LocalDate fechaAlta, TipoUsuario tipo, String usuario, String contrasenia,
+                 String numeroSocio, LocalDate fechaVencimientoCarnet, String estado,
+                 boolean tieneSanciones, boolean tieneAtrasos) {
+        this(id, nombre, apellido, dni, email, telefono, fechaAlta, tipo, usuario, contrasenia,
+                numeroSocio, fechaVencimientoCarnet, estado, tieneSanciones, tieneAtrasos, null);
+    }
 
+    // Constructor para UI
+    public Socio(String nombre, String apellido, String dni, String email, String telefono,
+                 String usuario, String contrasenia, String categoria) {
+        super(0, nombre, apellido, dni, email, telefono, LocalDate.now(), TipoUsuario.SOCIO, usuario, contrasenia);
+        this.numeroSocio = null;
+        this.fechaVencimientoCarnet = null;
+        this.estado = null;
+        this.tieneSanciones = false;
+        this.tieneAtrasos = false;
+        this.prestamos = new ArrayList<>();
+        setCategoria(categoria);
+    }
 
+    // === Setters accesibles ===
+    public void setNumeroSocio(String numeroSocio) { this.numeroSocio = numeroSocio; }
+    public void setFechaVencimientoCarnet(LocalDate fechaVencimientoCarnet) { this.fechaVencimientoCarnet = fechaVencimientoCarnet; }
+    public void setEstado(String estado) { this.estado = estado; }
+    public void setTieneSanciones(boolean tieneSanciones) { this.tieneSanciones = tieneSanciones; }
+    public void setTieneAtrasos(boolean tieneAtrasos) { this.tieneAtrasos = tieneAtrasos; }
+    public void setCategoria(String categoria) { this.categoria = categoria; }
+    public void setFechaAlta(LocalDate fechaAlta) {
+        setFechaAltaInterno(fechaAlta);
+    }
+
+    // === Getters ===
+    public String getNumeroSocio() { return numeroSocio; }
+    public LocalDate getFechaVencimientoCarnet() { return fechaVencimientoCarnet; }
+    public String getEstado() { return estado; }
+    public boolean isTieneSanciones() { return tieneSanciones; }
+    public boolean isTieneAtrasos() { return tieneAtrasos; }
+    public List<Prestamo> getPrestamos() { return prestamos; }
+    public String getCategoria() { return categoria; }
+
+    // === Otros métodos ===
     public void renovarCarnet(int mesesExtra) {
-        if (mesesExtra <= 0) {
-            throw new IllegalArgumentException("El número de meses debe ser mayor a cero.");
-        }
-        this.fechaVencimientoCarnet = this.fechaVencimientoCarnet.plusMonths(mesesExtra);
+        if (mesesExtra <= 0) throw new IllegalArgumentException("El número de meses debe ser mayor a cero.");
+        if (fechaVencimientoCarnet != null) fechaVencimientoCarnet = fechaVencimientoCarnet.plusMonths(mesesExtra);
     }
-
 
     public boolean verificarVigencia() {
-        LocalDate hoy = LocalDate.now();
-        return !hoy.isAfter(fechaVencimientoCarnet);
+        return fechaVencimientoCarnet != null && !LocalDate.now().isAfter(fechaVencimientoCarnet);
     }
 
     public List<Prestamo> obtenerPrestamosActivos() {
         List<Prestamo> activos = new ArrayList<>();
-        if (prestamos == null || prestamos.isEmpty()) {
-            return activos;
-        }
+        if (prestamos == null) return activos;
         for (Prestamo p : prestamos) {
-            if (p != null && p.getEstado() != null && !p.getEstado().equalsIgnoreCase("Devuelto")) {
-                activos.add(p);
-            }
+            if (p != null && p.getEstado() != null && !p.getEstado().equalsIgnoreCase("Devuelto")) activos.add(p);
         }
         return activos;
     }
 
     public boolean verificarHabilitacion() {
-        if (estado == null) return false;
-        boolean carnetVigente = verificarVigencia();
-        return carnetVigente && !tieneSanciones && !tieneAtrasos && estado.equalsIgnoreCase("Activo");
+        return estado != null && verificarVigencia() && !tieneSanciones && !tieneAtrasos && estado.equalsIgnoreCase("Activo");
     }
 
-    public void suspender() {
-        this.estado = "Suspendido";
-        System.out.println("El socio ha sido suspendido.");
-    }
-
-    public void activar() {
-        this.estado = "Activo";
-        this.tieneSanciones = false;
-        this.tieneAtrasos = false;
-        System.out.println("El socio ha sido reactivado.");
-    }
-
-    @Override
-    public String getTipo() {
-        return "Socio";
-    }
-
-    public int getNumeroSocio() {
-        return numeroSocio;
-    }
-
-    public LocalDate getFechaVencimientoCarnet() {
-        return fechaVencimientoCarnet;
-    }
-
-    public String getEstado() {
-        return estado;
-    }
-
-    public boolean isTieneSanciones() {
-        return tieneSanciones;
-    }
-
-    public boolean isTieneAtrasos() {
-        return tieneAtrasos;
-    }
-
-    public List<Prestamo> getPrestamos() {
-        return prestamos;
-    }
+    public void suspender() { this.estado = "Suspendido"; }
+    public void activar() { this.estado = "Activo"; this.tieneSanciones = false; this.tieneAtrasos = false; }
 
     public void agregarPrestamo(Prestamo prestamo) {
-        if (prestamo == null) {
-            throw new IllegalArgumentException("El préstamo no puede ser nulo.");
-        }
+        if (prestamo == null) throw new IllegalArgumentException("El préstamo no puede ser nulo.");
         for (Prestamo p : prestamos) {
-            if (p.getEjemplar().getCodigo().equals(prestamo.getEjemplar().getCodigo())) {
+            if (p.getEjemplar().getCodigo().equals(prestamo.getEjemplar().getCodigo()))
                 throw new IllegalStateException("El ejemplar ya fue prestado a este socio.");
-            }
         }
         prestamos.add(prestamo);
     }
 
     @Override
-    public String toString() {
-        return super.toString() +
-                " | N° Socio: " + numeroSocio +
-                " | Estado: " + estado +
-                " | Vence: " + fechaVencimientoCarnet;
+    public String getTipo() { return "Socio"; }
+    @Override
+    public void setTipo(TipoUsuario tipoUsuario) {
+        // No hace nada, el tipo siempre es SOCIO
     }
 
+
+    @Override
+    public String toString() {
+        return super.toString() + " | N° Socio: " + numeroSocio + " | Estado: " + estado + " | Vence: " + fechaVencimientoCarnet;
+    }
 }

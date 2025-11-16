@@ -1,17 +1,20 @@
 package biblioteca.ui;
 
-import biblioteca.data.BaseDatosSimulada;
-import biblioteca.entities.inventario.Libro;
+import biblioteca.data.dao.*;
 import biblioteca.entities.prestamos.PoliticaPrestamo;
-import biblioteca.entities.prestamos.Prestamo;
+import biblioteca.entities.usuarios.Bibliotecario;
 import biblioteca.entities.usuarios.Socio;
+import biblioteca.entities.usuarios.Usuario;
 import biblioteca.services.*;
 import biblioteca.ui.formularios.*;
+import biblioteca.ui.componentes.NotificadorEmail;
 import biblioteca.ui.pantallas.*;
 
 import java.util.Scanner;
 
-public class MenuPrincipal {
+import static biblioteca.data.db.ConexionBD.conexion;
+
+public class MenuPrincipal  {
 
     private final Scanner scanner;
     private final ControlUsuarios controlUsuarios;
@@ -21,41 +24,62 @@ public class MenuPrincipal {
     private final ControlValidaciones controlValidaciones;
     private final ControlComprobantes controlComprobantes;
     private final ControlConsultas controlConsultas;
-    private ControlHistorial controlHistorial;
+    private final ControlHistorial controlHistorial;
     private final ControlLibros controlLibros;
     private final FormularioLogin formularioLogin;
     private final ControlNotificaciones controlNotificaciones;
+    private NotificadorEmail notificadorEmail;
 
-    public MenuPrincipal(ControlLibros controlLibros) {
-        this.controlLibros = controlLibros;
-        scanner = new Scanner(System.in);
+    // DAOs propagados a Formularios
+    private final LibroDAO libroDAO;
+    private final EjemplarDAO ejemplarDAO;
+    private final PrestamoDAO prestamoDAO;
 
-        // Inicialización de controles
-        controlUsuarios = new ControlUsuarios();
-        controlPoliticas = new ControlPoliticas();
-        controlValidaciones = new ControlValidaciones();
-        controlDevoluciones = new ControlDevoluciones(controlHistorial);
-        controlComprobantes = new ControlComprobantes();
-        controlConsultas = new ControlConsultas();
-        controlHistorial = new ControlHistorial();
-        controlNotificaciones = new ControlNotificaciones(BaseDatosSimulada.getPrestamos());
+    public MenuPrincipal() throws DAOException {
 
-        // Obtener socio inicial de prueba (el primero cargado en la BaseDatosSimulada)
-        Socio socioInicial = BaseDatosSimulada.buscarSocioPorDni("12345678");
-        PoliticaPrestamo politicaInicial;
-        if (socioInicial != null) {
-            politicaInicial = BaseDatosSimulada.obtenerPoliticaPorSocio(socioInicial.getDni());
-        } else {
-            // Fallback en caso de que no haya socios cargados
-            politicaInicial = new PoliticaPrestamo(1, "Estándar", 7, 3, 50.0);
-        }
+        // DAOs
+        this.libroDAO = new LibroDAO();
+        this.prestamoDAO = new PrestamoDAO();
+        DevolucionDAO devolucionDAO = new DevolucionDAO(prestamoDAO);
+        this.ejemplarDAO = new EjemplarDAO();
+        PoliticaPrestamoDAO politicaDAO = new PoliticaPrestamoDAO();
+        SocioDAO socioDAO = new SocioDAO();
+        ComprobanteDAO comprobanteDAO = new ComprobanteDAO(prestamoDAO);
+        HistorialDAO historialDAO = new HistorialDAO(socioDAO);
+        NotificacionesDAO notificacionesDAO = new NotificacionesDAO();
+        BibliotecarioDAO bibliotecarioDAO = new BibliotecarioDAO();
 
-        // Inicializar control de préstamos con política obtenida
-        controlPrestamos = new ControlPrestamos(politicaInicial, controlPoliticas, controlValidaciones, controlHistorial);
-        formularioLogin = new FormularioLogin(controlUsuarios);
+        // CONTROLES
+        this.scanner = new Scanner(System.in);
+        this.controlUsuarios = new ControlUsuarios(bibliotecarioDAO, socioDAO);
+        this.controlPoliticas = new ControlPoliticas(socioDAO, politicaDAO);
+        this.controlValidaciones = new ControlValidaciones(socioDAO);
+        this.controlHistorial = new ControlHistorial(historialDAO, prestamoDAO);
+        this.controlComprobantes = new ControlComprobantes(comprobanteDAO);
+        this.controlConsultas = new ControlConsultas(libroDAO, prestamoDAO);
+        this.controlLibros = new ControlLibros(libroDAO, ejemplarDAO);
+
+        // DEVOLUCIONES CON DAOs
+        this.controlDevoluciones = new ControlDevoluciones(controlHistorial, prestamoDAO, devolucionDAO, ejemplarDAO);
+
+        //NOTIFICADOR UI
+        this.notificadorEmail = NotificadorEmail.defaultFake();
+
+        // NOTIFICACIONES
+        this.controlNotificaciones = new ControlNotificaciones(
+                prestamoDAO,
+                notificacionesDAO,
+                notificadorEmail
+        );
+
+        // PRESTAMOS
+        this.controlPrestamos = new ControlPrestamos(prestamoDAO, ejemplarDAO, socioDAO, controlPoliticas, controlValidaciones, controlHistorial);
+
+        // LOGIN
+        this.formularioLogin = new FormularioLogin(controlUsuarios);
     }
 
-    public void iniciar() {
+    public void iniciar() throws DAOException {
         System.out.println("===== SISTEMA DE GESTIÓN BIBLIOTECARIA =====");
 
         boolean salirSistema = false;
@@ -83,10 +107,12 @@ public class MenuPrincipal {
         }
     }
 
-    // ======== FLUJO DEL BIBLIOTECARIO ========
+    // MENÚ BIBLIOTECARIO
     private void iniciarBibliotecario() {
         System.out.println("\n--- Ingreso Bibliotecario ---");
-        if (!formularioLogin.mostrarFormulario()) {
+
+        Usuario usuario = formularioLogin.mostrarFormulario();
+        if (usuario == null) {
             System.out.println("No se pudo iniciar sesión. Volviendo al menú principal...");
             return;
         }
@@ -102,7 +128,16 @@ public class MenuPrincipal {
                 case 3 -> registrarDevolucion();
                 case 4 -> consultarHistorial();
                 case 5 -> generarReporte();
-                case 6 -> controlNotificaciones.procesoNotificaciones();
+                //opción de notificaciones
+                case 6 -> {
+                    try {
+                        controlNotificaciones.verificarVencimientos();
+                        controlNotificaciones.enviarNotificacionesPendientes();
+                    } catch (DAOException e) {
+                        System.out.println("Error generando/enviando notificaciones: " + e.getMessage());
+                    }
+                }
+
                 case 0 -> {
                     salir = true;
                     System.out.println("Cerrando sesión de bibliotecario...");
@@ -112,15 +147,16 @@ public class MenuPrincipal {
         }
     }
 
-    // ======== FLUJO DEL SOCIO ========
-    private void iniciarSocio() {
+    // MENÚ SOCIO
+    private void iniciarSocio() throws DAOException {
         System.out.println("\n=== Portal Web Simulado para Socios ===");
+
         boolean salir = false;
-        Socio socioActivo = null; // mantiene referencia al socio logueado
+        Socio socioActivo = null;
 
         while (!salir) {
+
             if (socioActivo == null) {
-                // Menú sin sesión iniciada
                 System.out.println("""
                     
                     ===== MENÚ SOCIO =====
@@ -133,23 +169,26 @@ public class MenuPrincipal {
 
                 switch (opcion) {
                     case 1 -> {
-                        FormularioRegistroSocio registro = new FormularioRegistroSocio(controlUsuarios, controlValidaciones);
+                        FormularioRegistroSocio registro =
+                                new FormularioRegistroSocio(controlUsuarios, controlValidaciones);
                         registro.mostrarFormulario();
                     }
                     case 2 -> {
-                        FormularioLogin loginSocio = new FormularioLogin(controlUsuarios);
-                        socioActivo = loginSocio.mostrarFormularioYRetornarSocio();
-                        if (socioActivo != null) {
+                        Usuario usuario = formularioLogin.mostrarFormulario();
+                        if (usuario instanceof Socio socio) {
+                            socioActivo = socio;
                             System.out.println("Login exitoso. Bienvenido/a, " + socioActivo.getNombreCompleto() + ".");
-                        } else {
+                        } else if (usuario == null) {
                             System.out.println("Credenciales incorrectas o usuario no encontrado.");
+                        } else {
+                            System.out.println("El usuario no corresponde a un socio.");
                         }
                     }
                     case 0 -> salir = true;
                     default -> System.out.println("Opción inválida. Intente nuevamente.");
                 }
+
             } else {
-                // Menú con sesión iniciada
                 System.out.println("\n===== MENÚ SOCIO (" + socioActivo.getNombreCompleto() + ") =====");
                 System.out.println("""
                     1. Ver mi historial de préstamos
@@ -160,19 +199,8 @@ public class MenuPrincipal {
                 int opcion = leerOpcion();
 
                 switch (opcion) {
-                    case 1 -> {
-                        System.out.println("\n=== HISTORIAL PERSONAL ===");
-                        controlConsultas.consultarHistorialPorSocio(socioActivo.getDni());
-                    }
-                    case 2 -> {
-                        System.out.println("\n=== LIBROS Y EJEMPLARES DISPONIBLES ===");
-                        BaseDatosSimulada.getEjemplares().stream()
-                                .filter(e -> e.verificarDisponibilidad())
-                                .forEach(e -> System.out.printf("Libro: %s | Ejemplar: %s | Estado: %s%n",
-                                        e.getLibro() != null ? e.getLibro().getTitulo() : "Sin título",
-                                        e.getCodigo(),
-                                        e.getEstado()));
-                    }
+                    case 1 -> controlConsultas.consultarHistorialPorSocio(socioActivo.getDni());
+                    case 2 -> mostrarLibrosDisponibles();
                     case 0 -> {
                         System.out.println("Cerrando sesión de socio...");
                         socioActivo = null;
@@ -183,7 +211,7 @@ public class MenuPrincipal {
         }
     }
 
-    // ======== MÉTODOS DEL BIBLIOTECARIO ========
+    // UTILITARIOS
     private void mostrarOpcionesBibliotecario() {
         System.out.println("""
                 
@@ -214,85 +242,44 @@ public class MenuPrincipal {
     }
 
     private void registrarPrestamo() {
-        System.out.println("\n--- Registrar Préstamo ---");
         FormularioPrestamos formulario = new FormularioPrestamos(
                 controlPrestamos,
-                controlValidaciones,
                 controlComprobantes,
-                controlUsuarios,
-                controlPoliticas
+                controlUsuarios
         );
         formulario.mostrarFormulario();
     }
 
     private void registrarDevolucion() {
-        System.out.println("\n--- Registrar Devolución ---");
         FormularioDevolucion formulario = new FormularioDevolucion(controlDevoluciones);
         formulario.mostrarFormulario();
     }
 
+    private void mostrarLibrosDisponibles() {
+        try {
+            var listaLibros = controlLibros.listarLibrosConDetalleEjemplares();
+            System.out.println("\n=== LIBROS DISPONIBLES ===");
+            for (var detalle : listaLibros) {
+                var libro = (biblioteca.entities.inventario.Libro) detalle.get("libro");
+                System.out.println("Título: " + libro.getTitulo()
+                        + " | Total: " + detalle.get("totalEjemplares")
+                        + " | Disponibles: " + detalle.get("disponibles")
+                        + " | Prestados: " + detalle.get("prestados"));
+            }
+        } catch (biblioteca.data.dao.DAOException e) {
+            System.out.println("Error al listar libros: " + e.getMessage());
+        }
+    }
+
     private void consultarHistorial() {
-        System.out.println("\n--- Consultar Historial ---");
         PantallaHistorial pantalla = new PantallaHistorial(controlConsultas, controlHistorial);
         pantalla.mostrarPantalla();
     }
 
     private void generarReporte() {
-        System.out.println("\n--- REPORTE GENERAL ---");
-
-        // 1. Préstamos activos
-        System.out.println("\n1. Préstamos activos:");
-        if (BaseDatosSimulada.getPrestamos().isEmpty()) {
-            System.out.println("No hay préstamos registrados.");
-        } else {
-            for (Prestamo p : BaseDatosSimulada.getPrestamos()) {
-                p.actualizarEstado(); // asegura que el estado esté correcto
-                if (!"Devuelto".equalsIgnoreCase(p.getEstado())) {
-                    System.out.printf("Socio: %s | Libro: %s | Ejemplar: %s | Fecha préstamo: %s | Vence: %s | Estado: %s%n",
-                            p.getSocio().getNombreCompleto(),
-                            p.getEjemplar().getLibro() != null ? p.getEjemplar().getLibro().getTitulo() : "Sin libro",
-                            p.getEjemplar().getCodigo(),
-                            p.getFechaPrestamo(),
-                            p.getFechaVencimiento(),
-                            p.getEstado());
-                }
-            }
-        }
-
-        // 2. Socios con atrasos o sanciones
-        System.out.println("\n2. Socios con atrasos o sanciones:");
-        boolean haySociosConProblemas = false;
-        for (Socio s : BaseDatosSimulada.getSocios()) {
-            if (s.isTieneAtrasos() || s.isTieneSanciones()) {
-                System.out.printf("Socio: %s | Atrasos: %s | Sanciones: %s | Estado: %s%n",
-                        s.getNombreCompleto(),
-                        s.isTieneAtrasos(),
-                        s.isTieneSanciones(),
-                        s.getEstado());
-                haySociosConProblemas = true;
-            }
-        }
-        if (!haySociosConProblemas) {
-            System.out.println("No hay socios con atrasos o sanciones.");
-        }
-
-        // 3. Inventario de libros
-        System.out.println("\n3. Inventario de libros:");
-        if (BaseDatosSimulada.getLibros().isEmpty()) {
-            System.out.println("No hay libros registrados.");
-        } else {
-            for (Libro l : BaseDatosSimulada.getLibros()) {
-                long disponibles = BaseDatosSimulada.getEjemplares().stream()
-                        .filter(e -> e.getLibro() != null && e.getLibro().equals(l) && e.verificarDisponibilidad())
-                        .count();
-                long prestados = BaseDatosSimulada.getEjemplares().stream()
-                        .filter(e -> e.getLibro() != null && e.getLibro().equals(l) && !"Disponible".equalsIgnoreCase(e.getEstado()))
-                        .count();
-
-                System.out.printf("Libro: %s | Disponibles: %d | Prestados: %d%n",
-                        l.getTitulo(), disponibles, prestados);
-            }
-        }
+        System.out.println("\n=== REPORTE GENERAL DE PRÉSTAMOS ===");
+        String reporte = controlConsultas.generarReporte();
+        System.out.println(reporte);
+        System.out.println("Reporte exportado exitosamente (simulado).");
     }
-
 }
